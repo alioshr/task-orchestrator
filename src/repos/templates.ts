@@ -10,11 +10,8 @@ import {
   saveTags,
   deleteTags
 } from './base';
-import type { Result } from '../domain/types';
+import type { Result, Template, TemplateSection, Section } from '../domain/types';
 import {
-  Template,
-  TemplateSection,
-  Section,
   EntityType,
   ContentFormat,
   NotFoundError,

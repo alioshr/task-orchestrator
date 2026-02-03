@@ -173,8 +173,8 @@ describe('getTagUsage', () => {
     if (result.success) {
       expect(result.data).toHaveLength(2);
       // FEATURE comes before PROJECT alphabetically
-      expect(result.data[0].entityType).toBe('FEATURE');
-      expect(result.data[1].entityType).toBe('PROJECT');
+      expect(result.data[0]!.entityType).toBe('FEATURE');
+      expect(result.data[1]!.entityType).toBe('PROJECT');
     }
   });
 });

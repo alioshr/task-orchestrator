@@ -470,7 +470,7 @@ describe('searchProjects', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.length).toBe(1);
-      expect(result.data[0].name).toBe('Unique Project');
+      expect(result.data[0]!.name).toBe('Unique Project');
     }
   });
 
@@ -483,7 +483,7 @@ describe('searchProjects', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.length).toBe(1);
-      expect(result.data[0].status).toBe(ProjectStatus.IN_DEVELOPMENT);
+      expect(result.data[0]!.status).toBe(ProjectStatus.IN_DEVELOPMENT);
     }
   });
 
@@ -523,7 +523,7 @@ describe('searchProjects', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.length).toBe(1);
-      expect(result.data[0].name).toBe('Backend Project');
+      expect(result.data[0]!.name).toBe('Backend Project');
     }
   });
 
@@ -540,7 +540,7 @@ describe('searchProjects', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.length).toBe(1);
-      expect(result.data[0].name).toBe('Unique Active');
+      expect(result.data[0]!.name).toBe('Unique Active');
     }
   });
 
@@ -579,8 +579,8 @@ describe('searchProjects', () => {
     expect(result.success).toBe(true);
     if (result.success && first.success && second.success) {
       // Most recently modified should be first
-      expect(result.data[0].id).toBe(second.data.id);
-      expect(result.data[1].id).toBe(first.data.id);
+      expect(result.data[0]!.id).toBe(second.data.id);
+      expect(result.data[1]!.id).toBe(first.data.id);
     }
   });
 
