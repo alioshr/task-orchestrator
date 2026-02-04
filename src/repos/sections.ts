@@ -348,6 +348,10 @@ export function deleteSection(id: string): Result<boolean> {
 
 /**
  * Reorder sections for an entity
+ *
+ * Uses a two-phase approach to avoid UNIQUE constraint violations:
+ * 1. First, set all ordinals to temporary negative values
+ * 2. Then update them to their final values
  */
 export function reorderSections(
   entityId: string,
@@ -359,15 +363,26 @@ export function reorderSections(
     db.run('BEGIN TRANSACTION');
 
     try {
+      const timestamp = now();
+
+      // Phase 1: Set all sections to temporary negative ordinals to avoid UNIQUE constraint conflicts
       for (let i = 0; i < orderedIds.length; i++) {
         const changes = execute(
           'UPDATE sections SET ordinal = ?, modified_at = ? WHERE id = ? AND entity_id = ? AND entity_type = ?',
-          [i, now(), orderedIds[i], entityId, entityType]
+          [-(i + 1), timestamp, orderedIds[i], entityId, entityType]
         );
 
         if (changes === 0) {
           throw new Error(`Section not found or does not belong to entity: ${orderedIds[i]}`);
         }
+      }
+
+      // Phase 2: Set final ordinal values
+      for (let i = 0; i < orderedIds.length; i++) {
+        execute(
+          'UPDATE sections SET ordinal = ? WHERE id = ? AND entity_id = ? AND entity_type = ?',
+          [i, orderedIds[i], entityId, entityType]
+        );
       }
 
       db.run('COMMIT');

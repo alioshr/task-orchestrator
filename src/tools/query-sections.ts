@@ -23,7 +23,7 @@ export function registerQuerySectionsTool(server: McpServer): void {
       try {
         // Parse sectionIds if provided
         const sectionIds = params.sectionIds
-          ? params.sectionIds.split(',').map(id => id.trim())
+          ? params.sectionIds.split(',').map(id => id.trim().replace(/-/g, ''))
           : undefined;
 
         // Call getSections with parsed parameters

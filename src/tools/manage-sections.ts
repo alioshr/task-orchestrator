@@ -222,7 +222,7 @@ export function registerManageSectionsTool(server: McpServer): void {
               };
             }
 
-            const orderedIds = params.orderedIds.split(',').map(id => id.trim());
+            const orderedIds = params.orderedIds.split(',').map(id => id.trim().replace(/-/g, ''));
             const result = reorderSections(params.entityId, params.entityType, orderedIds);
 
             if (!result.success) {
@@ -335,7 +335,7 @@ export function registerManageSectionsTool(server: McpServer): void {
               };
             }
 
-            const sectionIds = params.sectionIds.split(',').map(id => id.trim());
+            const sectionIds = params.sectionIds.split(',').map(id => id.trim().replace(/-/g, ''));
             const result = bulkDeleteSections(sectionIds);
 
             if (!result.success) {

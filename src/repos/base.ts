@@ -66,9 +66,18 @@ export function loadTags(entityId: string, entityType: string): string[] {
 /** Save tags for an entity (replaces existing) */
 export function saveTags(entityId: string, entityType: string, tags: string[]): void {
   execute('DELETE FROM entity_tags WHERE entity_id = ? AND entity_type = ?', [entityId, entityType]);
+
+  // Normalize and deduplicate tags
+  const uniqueTags = new Set<string>();
   for (const tag of tags) {
     const normalizedTag = tag.trim().toLowerCase();
-    if (!normalizedTag) continue;
+    if (normalizedTag) {
+      uniqueTags.add(normalizedTag);
+    }
+  }
+
+  // Insert unique tags
+  for (const normalizedTag of uniqueTags) {
     execute(
       'INSERT INTO entity_tags (id, entity_id, entity_type, tag, created_at) VALUES (?, ?, ?, ?, ?)',
       [generateId(), entityId, entityType, normalizedTag, now()]
