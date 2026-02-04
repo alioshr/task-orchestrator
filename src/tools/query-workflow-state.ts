@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, uuidSchema } from './registry';
 import { getProject } from '../repos/projects';
 import { getFeature } from '../repos/features';
 import { getTask } from '../repos/tasks';
@@ -9,13 +9,17 @@ import { ProjectStatus, FeatureStatus, TaskStatus } from '../domain/types';
 
 /**
  * Status transition maps (same as get-next-status.ts)
+ *
+ * Note: CANCELLED and DEFERRED are intentionally non-terminal statuses.
+ * They allow transitions back to earlier workflow stages (BACKLOG/PENDING for tasks,
+ * PLANNING for projects) to support reinstating cancelled or deferred work.
  */
 const PROJECT_TRANSITIONS: Record<ProjectStatus, ProjectStatus[]> = {
   [ProjectStatus.PLANNING]: [ProjectStatus.IN_DEVELOPMENT, ProjectStatus.ON_HOLD, ProjectStatus.CANCELLED],
   [ProjectStatus.IN_DEVELOPMENT]: [ProjectStatus.COMPLETED, ProjectStatus.ON_HOLD, ProjectStatus.CANCELLED],
   [ProjectStatus.ON_HOLD]: [ProjectStatus.PLANNING, ProjectStatus.IN_DEVELOPMENT, ProjectStatus.CANCELLED],
   [ProjectStatus.COMPLETED]: [ProjectStatus.ARCHIVED],
-  [ProjectStatus.CANCELLED]: [ProjectStatus.PLANNING],
+  [ProjectStatus.CANCELLED]: [ProjectStatus.PLANNING], // Non-terminal: allows reinstating cancelled projects
   [ProjectStatus.ARCHIVED]: []
 };
 
@@ -45,9 +49,9 @@ const TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   [TaskStatus.BLOCKED]: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
   [TaskStatus.ON_HOLD]: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
   [TaskStatus.DEPLOYED]: [TaskStatus.COMPLETED],
-  [TaskStatus.COMPLETED]: [],
-  [TaskStatus.CANCELLED]: [TaskStatus.BACKLOG, TaskStatus.PENDING],
-  [TaskStatus.DEFERRED]: [TaskStatus.BACKLOG, TaskStatus.PENDING]
+  [TaskStatus.COMPLETED]: [], // Terminal: no transitions allowed
+  [TaskStatus.CANCELLED]: [TaskStatus.BACKLOG, TaskStatus.PENDING], // Non-terminal: allows reinstating cancelled tasks
+  [TaskStatus.DEFERRED]: [TaskStatus.BACKLOG, TaskStatus.PENDING] // Non-terminal: allows resuming deferred tasks
 };
 
 /**
@@ -55,6 +59,9 @@ const TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
  *
  * Returns the full workflow state for a container including current status,
  * allowed transitions, and dependency information for tasks.
+ *
+ * Note: CANCELLED and DEFERRED statuses can transition back to earlier stages
+ * (BACKLOG/PENDING for tasks, PLANNING for projects) to support work reinstatement.
  */
 export function registerQueryWorkflowStateTool(server: McpServer): void {
   server.tool(
@@ -62,7 +69,7 @@ export function registerQueryWorkflowStateTool(server: McpServer): void {
     'Query the full workflow state for a container. Returns current status, allowed transitions, whether the status is terminal, and for tasks also includes dependency information (blocking/blocked-by tasks and whether all blockers are resolved).',
     {
       containerType: z.enum(['project', 'feature', 'task']).describe('Type of container (project, feature, or task)'),
-      id: z.string().uuid().describe('ID of the container')
+      id: uuidSchema.describe('ID of the container')
     },
     async (params: any) => {
       try {

@@ -5,13 +5,19 @@ const PROJECT_STATUSES = Object.values(ProjectStatus);
 const FEATURE_STATUSES = Object.values(FeatureStatus);
 const TASK_STATUSES = Object.values(TaskStatus);
 
-// Status transition maps
+/**
+ * Status transition maps
+ *
+ * Note: CANCELLED and DEFERRED are intentionally non-terminal statuses.
+ * They allow transitions back to earlier workflow stages (BACKLOG/PENDING for tasks,
+ * PLANNING for projects) to support reinstating cancelled or deferred work.
+ */
 const PROJECT_TRANSITIONS: Record<string, string[]> = {
   PLANNING: ['IN_DEVELOPMENT', 'ON_HOLD', 'CANCELLED'],
   IN_DEVELOPMENT: ['COMPLETED', 'ON_HOLD', 'CANCELLED'],
   ON_HOLD: ['PLANNING', 'IN_DEVELOPMENT', 'CANCELLED'],
   COMPLETED: ['ARCHIVED'],
-  CANCELLED: ['PLANNING'],
+  CANCELLED: ['PLANNING'], // Non-terminal: allows reinstating cancelled projects
   ARCHIVED: [],
 };
 
@@ -41,9 +47,9 @@ const TASK_TRANSITIONS: Record<string, string[]> = {
   BLOCKED: ['PENDING', 'IN_PROGRESS'],
   ON_HOLD: ['PENDING', 'IN_PROGRESS'],
   DEPLOYED: ['COMPLETED'],
-  COMPLETED: [],
-  CANCELLED: ['BACKLOG', 'PENDING'],
-  DEFERRED: ['BACKLOG', 'PENDING'],
+  COMPLETED: [], // Terminal: no transitions allowed
+  CANCELLED: ['BACKLOG', 'PENDING'], // Non-terminal: allows reinstating cancelled tasks
+  DEFERRED: ['BACKLOG', 'PENDING'], // Non-terminal: allows resuming deferred tasks
 };
 
 // Terminal statuses (no transitions out)

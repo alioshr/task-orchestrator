@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, uuidSchema, optionalUuidSchema } from './registry';
 import {
   createProject,
   getProject,
@@ -43,13 +43,13 @@ export function registerQueryContainerTool(server: McpServer): void {
     {
       operation: z.enum(['get', 'search', 'overview']),
       containerType: z.enum(['project', 'feature', 'task']),
-      id: z.string().uuid().optional(),
+      id: optionalUuidSchema,
       query: z.string().optional(),
       status: z.string().optional(),
       priority: z.string().optional(),
       tags: z.string().optional(),
-      projectId: z.string().uuid().optional(),
-      featureId: z.string().uuid().optional(),
+      projectId: optionalUuidSchema,
+      featureId: optionalUuidSchema,
       limit: z.number().int().optional().default(20),
       offset: z.number().int().optional().default(0),
       includeSections: z.boolean().optional().default(false),

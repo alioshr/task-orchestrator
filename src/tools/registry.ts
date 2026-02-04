@@ -1,6 +1,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+// --- Shared UUID schemas ---
+// These schemas accept standard dashed UUIDs and transform them to dashless format
+// to match the storage format in the database
+export const uuidSchema = z.string().uuid().transform(v => v.replace(/-/g, '').toLowerCase());
+export const optionalUuidSchema = z.string().uuid().optional().transform(v => v ? v.replace(/-/g, '').toLowerCase() : undefined);
+
 // --- Tool Definition interface ---
 export interface ToolDefinition {
   name: string;

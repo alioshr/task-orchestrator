@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, optionalUuidSchema } from './registry';
 import { getNextTask } from '../repos/dependencies';
 
 /**
@@ -14,8 +14,8 @@ export function registerGetNextTaskTool(server: McpServer): void {
     'get_next_task',
     'Get the next recommended task to work on. Returns the highest priority PENDING task that has no incomplete blocking dependencies. Tasks are prioritized by priority (HIGH > MEDIUM > LOW), then by complexity (simpler first), then by creation time.',
     {
-      projectId: z.string().uuid().optional().describe('Filter by project ID'),
-      featureId: z.string().uuid().optional().describe('Filter by feature ID'),
+      projectId: optionalUuidSchema.describe('Filter by project ID'),
+      featureId: optionalUuidSchema.describe('Filter by feature ID'),
       priority: z.string().optional().describe('Filter by priority (HIGH, MEDIUM, LOW)')
     },
     async (params: any) => {

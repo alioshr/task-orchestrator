@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, uuidSchema, optionalUuidSchema } from './registry';
 import {
   createTemplate,
   updateTemplate,
@@ -27,7 +27,7 @@ export function registerManageTemplateTool(server: McpServer): void {
     'Manage templates with operations: create, update, delete, enable, disable, or addSection',
     {
       operation: z.enum(['create', 'update', 'delete', 'enable', 'disable', 'addSection']),
-      id: z.string().uuid().optional(),
+      id: optionalUuidSchema,
       name: z.string().optional(),
       description: z.string().optional(),
       targetEntityType: z.string().optional(),

@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, optionalUuidSchema } from './registry';
 import { getBlockedTasks } from '../repos/dependencies';
 
 /**
@@ -14,8 +14,8 @@ export function registerGetBlockedTasksTool(server: McpServer): void {
     'get_blocked_tasks',
     'Get all blocked tasks. Returns tasks that either have status BLOCKED or have incomplete blocking dependencies (tasks that block them but are not completed). Results are sorted by priority (descending) then creation time (ascending).',
     {
-      projectId: z.string().uuid().optional().describe('Filter by project ID'),
-      featureId: z.string().uuid().optional().describe('Filter by feature ID')
+      projectId: optionalUuidSchema.describe('Filter by project ID'),
+      featureId: optionalUuidSchema.describe('Filter by feature ID')
     },
     async (params: any) => {
       try {

@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, uuidSchema, optionalUuidSchema } from './registry';
 import {
   addSection,
   updateSection,
@@ -23,8 +23,8 @@ export function registerManageSectionsTool(server: McpServer): void {
     {
       operation: z.enum(['add', 'update', 'updateText', 'delete', 'reorder', 'bulkCreate', 'bulkDelete']).describe('The operation to perform'),
       entityType: z.enum(['PROJECT', 'FEATURE', 'TASK']).optional().describe('Required for: add, bulkCreate'),
-      entityId: z.string().uuid().optional().describe('Required for: add, reorder, bulkCreate'),
-      sectionId: z.string().uuid().optional().describe('Required for: update, updateText, delete'),
+      entityId: optionalUuidSchema.describe('Required for: add, reorder, bulkCreate'),
+      sectionId: optionalUuidSchema.describe('Required for: update, updateText, delete'),
       title: z.string().optional().describe('Section title (for add/update)'),
       usageDescription: z.string().optional().describe('Description of how to use this section (for add/update)'),
       content: z.string().optional().describe('Section content (for add/update/updateText)'),
@@ -261,6 +261,19 @@ export function registerManageSectionsTool(server: McpServer): void {
               };
             }
 
+            if (!params.entityType || !params.entityId) {
+              return {
+                content: [{
+                  type: 'text' as const,
+                  text: JSON.stringify(
+                    createErrorResponse('Missing required parameters for bulkCreate: entityType, entityId'),
+                    null,
+                    2
+                  )
+                }]
+              };
+            }
+
             let sectionsArray;
             try {
               sectionsArray = JSON.parse(params.sections);
@@ -277,7 +290,14 @@ export function registerManageSectionsTool(server: McpServer): void {
               };
             }
 
-            const result = bulkCreateSections(sectionsArray);
+            // Inject entityType and entityId from top-level params into each section
+            const enrichedSections = sectionsArray.map((section: any) => ({
+              ...section,
+              entityType: params.entityType,
+              entityId: params.entityId,
+            }));
+
+            const result = bulkCreateSections(enrichedSections);
 
             if (!result.success) {
               return {

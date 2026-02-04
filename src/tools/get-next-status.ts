@@ -5,13 +5,17 @@ import { ProjectStatus, FeatureStatus, TaskStatus } from '../domain/types';
 
 /**
  * Status transition maps for each container type
+ *
+ * Note: CANCELLED and DEFERRED are intentionally non-terminal statuses.
+ * They allow transitions back to earlier workflow stages (BACKLOG/PENDING for tasks,
+ * PLANNING for projects) to support reinstating cancelled or deferred work.
  */
 const PROJECT_TRANSITIONS: Record<ProjectStatus, ProjectStatus[]> = {
   [ProjectStatus.PLANNING]: [ProjectStatus.IN_DEVELOPMENT, ProjectStatus.ON_HOLD, ProjectStatus.CANCELLED],
   [ProjectStatus.IN_DEVELOPMENT]: [ProjectStatus.COMPLETED, ProjectStatus.ON_HOLD, ProjectStatus.CANCELLED],
   [ProjectStatus.ON_HOLD]: [ProjectStatus.PLANNING, ProjectStatus.IN_DEVELOPMENT, ProjectStatus.CANCELLED],
   [ProjectStatus.COMPLETED]: [ProjectStatus.ARCHIVED],
-  [ProjectStatus.CANCELLED]: [ProjectStatus.PLANNING],
+  [ProjectStatus.CANCELLED]: [ProjectStatus.PLANNING], // Non-terminal: allows reinstating cancelled projects
   [ProjectStatus.ARCHIVED]: []
 };
 
@@ -41,15 +45,17 @@ const TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   [TaskStatus.BLOCKED]: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
   [TaskStatus.ON_HOLD]: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
   [TaskStatus.DEPLOYED]: [TaskStatus.COMPLETED],
-  [TaskStatus.COMPLETED]: [],
-  [TaskStatus.CANCELLED]: [TaskStatus.BACKLOG, TaskStatus.PENDING],
-  [TaskStatus.DEFERRED]: [TaskStatus.BACKLOG, TaskStatus.PENDING]
+  [TaskStatus.COMPLETED]: [], // Terminal: no transitions allowed
+  [TaskStatus.CANCELLED]: [TaskStatus.BACKLOG, TaskStatus.PENDING], // Non-terminal: allows reinstating cancelled tasks
+  [TaskStatus.DEFERRED]: [TaskStatus.BACKLOG, TaskStatus.PENDING] // Non-terminal: allows resuming deferred tasks
 };
 
 /**
  * Register the get_next_status MCP tool.
  *
  * Returns valid next statuses for a container based on its current status.
+ * Note: CANCELLED and DEFERRED statuses can transition back to earlier stages
+ * (BACKLOG/PENDING for tasks, PLANNING for projects) to support work reinstatement.
  */
 export function registerGetNextStatusTool(server: McpServer): void {
   server.tool(

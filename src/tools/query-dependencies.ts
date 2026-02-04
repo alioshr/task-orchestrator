@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, uuidSchema } from './registry';
 import { getDependencies } from '../repos/dependencies';
 
 /**
@@ -15,7 +15,7 @@ export function registerQueryDependenciesTool(server: McpServer): void {
     'query_dependencies',
     'Query dependencies for a task',
     {
-      taskId: z.string().uuid().describe('Task ID'),
+      taskId: uuidSchema.describe('Task ID'),
       direction: z
         .enum(['dependencies', 'dependents', 'both'])
         .optional()

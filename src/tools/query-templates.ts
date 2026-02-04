@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, uuidSchema, optionalUuidSchema } from './registry';
 import { getTemplate, listTemplates } from '../repos/templates';
 
 /**
@@ -16,7 +16,7 @@ export function registerQueryTemplatesTool(server: McpServer): void {
     'Query templates with operations: get (retrieve single template) or list (retrieve multiple templates with filters)',
     {
       operation: z.enum(['get', 'list']),
-      id: z.string().uuid().optional(),
+      id: optionalUuidSchema,
       includeSections: z.boolean().optional().default(false),
       targetEntityType: z.string().optional(),
       isBuiltIn: z.boolean().optional(),

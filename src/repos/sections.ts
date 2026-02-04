@@ -333,6 +333,12 @@ export function updateSectionText(id: string, content: string, version: number):
  */
 export function deleteSection(id: string): Result<boolean> {
   try {
+    // Check if section exists
+    const existing = queryOne<{ id: string }>('SELECT id FROM sections WHERE id = ?', [id]);
+    if (!existing) {
+      return err(`Section not found: ${id}`, 'NOT_FOUND');
+    }
+
     const changes = execute('DELETE FROM sections WHERE id = ?', [id]);
     return ok(changes > 0);
   } catch (error) {

@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, uuidSchema, optionalUuidSchema } from './registry';
 import {
   createProject,
   getProject,
@@ -38,15 +38,17 @@ export function registerManageContainerTool(server: McpServer): void {
     {
       operation: z.enum(['create', 'update', 'delete', 'setStatus']),
       containerType: z.enum(['project', 'feature', 'task']),
-      id: z.string().uuid().optional(),
-      name: z.string().optional(),
-      title: z.string().optional(),
+      id: optionalUuidSchema,
+      // Naming convention: projects/features use `name`, tasks use `title`.
+      // Both are the primary display label for their respective container types.
+      name: z.string().optional().describe('Display name for project and feature containers. Not used for tasks — use \'title\' instead.'),
+      title: z.string().optional().describe('Display title for task containers. Not used for projects/features — use \'name\' instead.'),
       summary: z.string().optional(),
       description: z.string().optional(),
       status: z.string().optional(),
       priority: z.string().optional(),
-      projectId: z.string().uuid().optional(),
-      featureId: z.string().uuid().optional(),
+      projectId: optionalUuidSchema,
+      featureId: optionalUuidSchema,
       complexity: z.number().int().optional(),
       tags: z.string().optional(),
       version: z.number().int().optional(),

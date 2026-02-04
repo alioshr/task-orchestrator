@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, uuidSchema } from './registry';
 import { applyTemplate } from '../repos/templates';
 
 /**
@@ -14,9 +14,9 @@ export function registerApplyTemplateTool(server: McpServer): void {
     'apply_template',
     'Apply a template to an entity (PROJECT, FEATURE, or TASK), creating sections from the template',
     {
-      templateId: z.string().uuid(),
+      templateId: uuidSchema,
       entityType: z.enum(['PROJECT', 'FEATURE', 'TASK']),
-      entityId: z.string().uuid()
+      entityId: uuidSchema
     },
     async (params: any) => {
       try {

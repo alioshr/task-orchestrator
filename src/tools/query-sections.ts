@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, uuidSchema } from './registry';
 import { getSections } from '../repos/sections';
 
 /**
@@ -14,7 +14,7 @@ export function registerQuerySectionsTool(server: McpServer): void {
     'Retrieve sections for an entity (PROJECT, FEATURE, or TASK). Supports filtering by tags, section IDs, and optional content exclusion for token savings.',
     {
       entityType: z.enum(['PROJECT', 'FEATURE', 'TASK']).describe('The type of entity to query sections for'),
-      entityId: z.string().uuid().describe('The UUID of the entity'),
+      entityId: uuidSchema.describe('The UUID of the entity'),
       includeContent: z.boolean().optional().default(true).describe('Set to false to exclude content field for token savings'),
       tags: z.string().optional().describe('Comma-separated list of tags to filter sections'),
       sectionIds: z.string().optional().describe('Comma-separated list of section IDs to filter')

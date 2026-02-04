@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createSuccessResponse, createErrorResponse } from './registry';
+import { createSuccessResponse, createErrorResponse, uuidSchema, optionalUuidSchema } from './registry';
 import { createDependency, deleteDependency } from '../repos/dependencies';
 import { DependencyType } from '../domain/types';
 
@@ -19,20 +19,11 @@ export function registerManageDependencyTool(server: McpServer): void {
       operation: z
         .enum(['create', 'delete'])
         .describe('Operation to perform: create or delete'),
-      id: z
-        .string()
-        .uuid()
-        .optional()
+      id: optionalUuidSchema
         .describe('Dependency ID (required for delete operation)'),
-      fromTaskId: z
-        .string()
-        .uuid()
-        .optional()
+      fromTaskId: optionalUuidSchema
         .describe('Source task ID (required for create operation)'),
-      toTaskId: z
-        .string()
-        .uuid()
-        .optional()
+      toTaskId: optionalUuidSchema
         .describe('Target task ID (required for create operation)'),
       type: z
         .enum(['BLOCKS', 'IS_BLOCKED_BY', 'RELATES_TO'])
