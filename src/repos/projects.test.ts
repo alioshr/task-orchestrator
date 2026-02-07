@@ -493,8 +493,17 @@ describe('deleteProject', () => {
     expect(project.success).toBe(true);
     if (!project.success) return;
 
-    const task = createTask({
+    const feature = createFeature({
       projectId: project.data.id,
+      name: 'Feature with Task',
+      summary: 'Has a task',
+      priority: Priority.HIGH
+    });
+    expect(feature.success).toBe(true);
+    if (!feature.success) return;
+
+    const task = createTask({
+      featureId: feature.data.id,
       title: 'Child Task',
       summary: 'A task',
       priority: Priority.HIGH,
@@ -507,7 +516,7 @@ describe('deleteProject', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.code).toBe('HAS_CHILDREN');
-      expect(result.error).toContain('1 task');
+      expect(result.error).toContain('1 feature');
     }
   });
 
@@ -601,10 +610,10 @@ describe('deleteProject', () => {
     expect(taskTags.length).toBe(0);
   });
 
-  it('should delete tasks that only have feature_id set (not project_id) when cascade is true', () => {
+  it('should auto-derive projectId from feature when creating task with only featureId', () => {
     const project = createProject({
       name: 'Project with Feature-only Tasks',
-      summary: 'Has tasks under features without project_id'
+      summary: 'Has tasks under features without explicit project_id'
     });
     expect(project.success).toBe(true);
     if (!project.success) return;
@@ -618,26 +627,27 @@ describe('deleteProject', () => {
     expect(feature.success).toBe(true);
     if (!feature.success) return;
 
-    // Create task with only feature_id, no project_id
+    // Create task with only feature_id - projectId should be auto-derived
     const task = createTask({
       featureId: feature.data.id,
-      // NOTE: not setting projectId
+      // NOTE: not setting projectId explicitly - should be derived from feature
       title: 'Task under Feature Only',
-      summary: 'Only has feature_id',
+      summary: 'Only has feature_id explicitly set',
       priority: Priority.MEDIUM,
       complexity: 3
     });
     expect(task.success).toBe(true);
     if (!task.success) return;
 
-    // Verify task has no project_id
+    // Verify task has project_id auto-derived from feature
     const taskCheck = getTask(task.data.id);
     expect(taskCheck.success).toBe(true);
     if (taskCheck.success) {
-      expect(taskCheck.data.projectId).toBeUndefined();
+      expect(taskCheck.data.projectId).toBe(project.data.id);
       expect(taskCheck.data.featureId).toBe(feature.data.id);
     }
 
+    // Cascade delete should still work
     const result = deleteProject(project.data.id, { cascade: true });
 
     expect(result.success).toBe(true);

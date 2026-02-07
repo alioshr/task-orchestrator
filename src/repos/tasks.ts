@@ -73,7 +73,6 @@ function validateComplexity(complexity: number): boolean {
 // ============================================================================
 
 export function createTask(params: {
-  projectId?: string;
   featureId?: string;
   title: string;
   summary: string;
@@ -97,6 +96,19 @@ export function createTask(params: {
       return err('Summary is required', 'VALIDATION_ERROR');
     }
 
+    // Derive projectId from feature - feature is the source of truth for project membership
+    let projectId: string | undefined;
+    if (params.featureId) {
+      const feature = queryOne<{ project_id: string | null }>(
+        'SELECT project_id FROM features WHERE id = ?',
+        [params.featureId]
+      );
+      if (!feature) {
+        return err(`Feature not found: ${params.featureId}`, 'NOT_FOUND');
+      }
+      projectId = feature.project_id ?? undefined;
+    }
+
     const id = generateId();
     const timestamp = now();
     const status = params.status ?? TaskStatus.PENDING;
@@ -113,7 +125,7 @@ export function createTask(params: {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
-          params.projectId ?? null,
+          projectId ?? null,
           params.featureId ?? null,
           params.title.trim(),
           params.summary.trim(),

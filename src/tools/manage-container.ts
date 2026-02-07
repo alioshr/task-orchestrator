@@ -127,7 +127,6 @@ export function registerManageContainerTool(server: McpServer): void {
             }
 
             result = createTask({
-              projectId: params.projectId,
               featureId: params.featureId,
               title: nameOrTitle,
               summary: params.summary,
