@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/alioshr/task-orchestrator/compare/v1.1.3...v1.2.0) (2026-02-07)
+
+
+### Features
+
+* generalize dependency enforcement to all container types ([7110a46](https://github.com/alioshr/task-orchestrator/commit/7110a4612cb6315bad7b716e69c326ea36af0ca2))
+
 ## [1.1.3](https://github.com/alioshr/task-orchestrator/compare/v1.1.2...v1.1.3) (2026-02-07)
 
 
