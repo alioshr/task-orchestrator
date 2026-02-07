@@ -32,6 +32,20 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Semantic Release
+        id: semantic
         run: bunx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to npm with OIDC
+        run: |
+          # Get version from package.json
+          VERSION=$(node -p "require('./package.json').version")
+
+          # Check if this version already exists on npm
+          if npm view @allpepper/task-orchestrator@$VERSION version 2>/dev/null; then
+            echo "Version $VERSION already published, skipping"
+          else
+            echo "Publishing version $VERSION"
+            npm publish --provenance --access public
+          fi
