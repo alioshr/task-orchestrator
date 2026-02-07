@@ -149,3 +149,19 @@ export function countTasksByProject(projectId: string): TaskCounts {
   }
   return { total, byStatus };
 }
+
+export function countFeaturesByProject(projectId: string): number {
+  const row = queryOne<{ count: number }>(
+    'SELECT COUNT(*) as count FROM features WHERE project_id = ?',
+    [projectId]
+  );
+  return row?.count ?? 0;
+}
+
+export function countTasksByFeatureId(featureId: string): number {
+  const row = queryOne<{ count: number }>(
+    'SELECT COUNT(*) as count FROM tasks WHERE feature_id = ?',
+    [featureId]
+  );
+  return row?.count ?? 0;
+}

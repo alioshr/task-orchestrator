@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from 'bun:test';
 import { db } from '../db/client';
-import { ProjectStatus } from '../domain/types';
+import { ProjectStatus, Priority } from '../domain/types';
 import {
   createProject,
   getProject,
@@ -9,10 +9,14 @@ import {
   searchProjects,
   getProjectOverview
 } from './projects';
+import { createFeature, getFeature } from './features';
+import { createTask, getTask } from './tasks';
 
 // Setup test database
 beforeEach(() => {
   // Clean up tables before each test
+  db.run('DELETE FROM dependencies');
+  db.run('DELETE FROM sections');
   db.run('DELETE FROM entity_tags');
   db.run('DELETE FROM tasks');
   db.run('DELETE FROM features');
@@ -21,6 +25,8 @@ beforeEach(() => {
 
 afterAll(() => {
   // Final cleanup
+  db.run('DELETE FROM dependencies');
+  db.run('DELETE FROM sections');
   db.run('DELETE FROM entity_tags');
   db.run('DELETE FROM tasks');
   db.run('DELETE FROM features');
@@ -451,6 +457,148 @@ describe('deleteProject', () => {
     if (!result.success) {
       expect(result.code).toBe('NOT_FOUND');
     }
+  });
+
+  it('should fail when project has features and cascade is not set', () => {
+    const project = createProject({
+      name: 'Project with Features',
+      summary: 'Has children'
+    });
+    expect(project.success).toBe(true);
+    if (!project.success) return;
+
+    const feature = createFeature({
+      projectId: project.data.id,
+      name: 'Child Feature',
+      summary: 'A child',
+      priority: Priority.HIGH
+    });
+    expect(feature.success).toBe(true);
+
+    const result = deleteProject(project.data.id);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('HAS_CHILDREN');
+      expect(result.error).toContain('1 feature');
+      expect(result.error).toContain('cascade: true');
+    }
+  });
+
+  it('should fail when project has tasks and cascade is not set', () => {
+    const project = createProject({
+      name: 'Project with Tasks',
+      summary: 'Has tasks'
+    });
+    expect(project.success).toBe(true);
+    if (!project.success) return;
+
+    const task = createTask({
+      projectId: project.data.id,
+      title: 'Child Task',
+      summary: 'A task',
+      priority: Priority.HIGH,
+      complexity: 3
+    });
+    expect(task.success).toBe(true);
+
+    const result = deleteProject(project.data.id);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('HAS_CHILDREN');
+      expect(result.error).toContain('1 task');
+    }
+  });
+
+  it('should delete project with features and tasks when cascade is true', () => {
+    const project = createProject({
+      name: 'Project to Cascade',
+      summary: 'Will be cascade deleted'
+    });
+    expect(project.success).toBe(true);
+    if (!project.success) return;
+
+    const feature = createFeature({
+      projectId: project.data.id,
+      name: 'Feature to Delete',
+      summary: 'Child feature',
+      priority: Priority.HIGH
+    });
+    expect(feature.success).toBe(true);
+    if (!feature.success) return;
+
+    const task = createTask({
+      projectId: project.data.id,
+      featureId: feature.data.id,
+      title: 'Task to Delete',
+      summary: 'Child task',
+      priority: Priority.HIGH,
+      complexity: 3
+    });
+    expect(task.success).toBe(true);
+    if (!task.success) return;
+
+    const result = deleteProject(project.data.id, { cascade: true });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toBe(true);
+    }
+
+    // Verify project is deleted
+    expect(getProject(project.data.id).success).toBe(false);
+
+    // Verify feature is deleted
+    expect(getFeature(feature.data.id).success).toBe(false);
+
+    // Verify task is deleted
+    expect(getTask(task.data.id).success).toBe(false);
+  });
+
+  it('should delete project sections, tags, and child entity tags when cascade is true', () => {
+    const project = createProject({
+      name: 'Tagged Project',
+      summary: 'Has tags',
+      tags: ['project-tag']
+    });
+    expect(project.success).toBe(true);
+    if (!project.success) return;
+
+    const feature = createFeature({
+      projectId: project.data.id,
+      name: 'Tagged Feature',
+      summary: 'Has tags',
+      priority: Priority.HIGH,
+      tags: ['feature-tag']
+    });
+    expect(feature.success).toBe(true);
+    if (!feature.success) return;
+
+    const task = createTask({
+      projectId: project.data.id,
+      featureId: feature.data.id,
+      title: 'Tagged Task',
+      summary: 'Has tags',
+      priority: Priority.HIGH,
+      complexity: 3,
+      tags: ['task-tag']
+    });
+    expect(task.success).toBe(true);
+    if (!task.success) return;
+
+    const result = deleteProject(project.data.id, { cascade: true });
+
+    expect(result.success).toBe(true);
+
+    // Verify all tags are deleted
+    const projectTags = db.query('SELECT * FROM entity_tags WHERE entity_id = ?').all(project.data.id);
+    const featureTags = db.query('SELECT * FROM entity_tags WHERE entity_id = ?').all(feature.data.id);
+    const taskTags = db.query('SELECT * FROM entity_tags WHERE entity_id = ?').all(task.data.id);
+
+    expect(projectTags.length).toBe(0);
+    expect(featureTags.length).toBe(0);
+    expect(taskTags.length).toBe(0);
   });
 });
 

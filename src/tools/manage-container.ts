@@ -52,6 +52,7 @@ export function registerManageContainerTool(server: McpServer): void {
       complexity: z.number().int().optional(),
       tags: z.string().optional(),
       version: z.number().int().optional(),
+      cascade: z.boolean().optional().describe('For delete operation: if true, deletes all child entities (features, tasks) recursively. Required when deleting a project or feature that has children.'),
     },
     async (params) => {
       try {
@@ -235,11 +236,13 @@ export function registerManageContainerTool(server: McpServer): void {
             };
           }
 
+          const cascadeOption = params.cascade ? { cascade: true } : undefined;
+
           let result;
           if (containerType === 'project') {
-            result = deleteProject(id);
+            result = deleteProject(id, cascadeOption);
           } else if (containerType === 'feature') {
-            result = deleteFeature(id);
+            result = deleteFeature(id, cascadeOption);
           } else {
             result = deleteTask(id);
           }

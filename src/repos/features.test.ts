@@ -9,10 +9,13 @@ import {
   searchFeatures,
   getFeatureOverview
 } from './features';
+import { createTask, getTask } from './tasks';
 
 // Setup test database
 beforeEach(() => {
   // Clean up tables before each test
+  db.run('DELETE FROM dependencies');
+  db.run('DELETE FROM sections');
   db.run('DELETE FROM entity_tags');
   db.run('DELETE FROM tasks');
   db.run('DELETE FROM features');
@@ -21,6 +24,8 @@ beforeEach(() => {
 
 afterAll(() => {
   // Final cleanup
+  db.run('DELETE FROM dependencies');
+  db.run('DELETE FROM sections');
   db.run('DELETE FROM entity_tags');
   db.run('DELETE FROM tasks');
   db.run('DELETE FROM features');
@@ -488,6 +493,134 @@ describe('updateFeature - Status Transition Validation', () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.status).toBe(FeatureStatus.IN_DEVELOPMENT);
+    }
+  });
+});
+
+describe('deleteFeature - Cascade Delete', () => {
+  it('should delete a feature without children', () => {
+    const feature = createFeature({
+      name: 'Empty Feature',
+      summary: 'No children',
+      priority: Priority.MEDIUM
+    });
+    expect(feature.success).toBe(true);
+    if (!feature.success) return;
+
+    const result = deleteFeature(feature.data.id);
+
+    expect(result.success).toBe(true);
+    expect(getFeature(feature.data.id).success).toBe(false);
+  });
+
+  it('should fail when feature has tasks and cascade is not set', () => {
+    const feature = createFeature({
+      name: 'Feature with Tasks',
+      summary: 'Has children',
+      priority: Priority.HIGH
+    });
+    expect(feature.success).toBe(true);
+    if (!feature.success) return;
+
+    const task = createTask({
+      featureId: feature.data.id,
+      title: 'Child Task',
+      summary: 'A child',
+      priority: Priority.HIGH,
+      complexity: 3
+    });
+    expect(task.success).toBe(true);
+
+    const result = deleteFeature(feature.data.id);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('HAS_CHILDREN');
+      expect(result.error).toContain('1 task');
+      expect(result.error).toContain('cascade: true');
+    }
+  });
+
+  it('should delete feature with tasks when cascade is true', () => {
+    const feature = createFeature({
+      name: 'Feature to Cascade',
+      summary: 'Will be cascade deleted',
+      priority: Priority.HIGH
+    });
+    expect(feature.success).toBe(true);
+    if (!feature.success) return;
+
+    const task1 = createTask({
+      featureId: feature.data.id,
+      title: 'Task 1',
+      summary: 'First task',
+      priority: Priority.HIGH,
+      complexity: 3
+    });
+    expect(task1.success).toBe(true);
+    if (!task1.success) return;
+
+    const task2 = createTask({
+      featureId: feature.data.id,
+      title: 'Task 2',
+      summary: 'Second task',
+      priority: Priority.MEDIUM,
+      complexity: 2
+    });
+    expect(task2.success).toBe(true);
+    if (!task2.success) return;
+
+    const result = deleteFeature(feature.data.id, { cascade: true });
+
+    expect(result.success).toBe(true);
+
+    // Verify feature is deleted
+    expect(getFeature(feature.data.id).success).toBe(false);
+
+    // Verify tasks are deleted
+    expect(getTask(task1.data.id).success).toBe(false);
+    expect(getTask(task2.data.id).success).toBe(false);
+  });
+
+  it('should delete feature and task tags when cascade is true', () => {
+    const feature = createFeature({
+      name: 'Tagged Feature',
+      summary: 'Has tags',
+      priority: Priority.HIGH,
+      tags: ['feature-tag']
+    });
+    expect(feature.success).toBe(true);
+    if (!feature.success) return;
+
+    const task = createTask({
+      featureId: feature.data.id,
+      title: 'Tagged Task',
+      summary: 'Has tags',
+      priority: Priority.HIGH,
+      complexity: 3,
+      tags: ['task-tag']
+    });
+    expect(task.success).toBe(true);
+    if (!task.success) return;
+
+    const result = deleteFeature(feature.data.id, { cascade: true });
+
+    expect(result.success).toBe(true);
+
+    // Verify all tags are deleted
+    const featureTags = db.query('SELECT * FROM entity_tags WHERE entity_id = ?').all(feature.data.id);
+    const taskTags = db.query('SELECT * FROM entity_tags WHERE entity_id = ?').all(task.data.id);
+
+    expect(featureTags.length).toBe(0);
+    expect(taskTags.length).toBe(0);
+  });
+
+  it('should return error for non-existent feature', () => {
+    const result = deleteFeature('non-existent-id');
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe('NOT_FOUND');
     }
   });
 });

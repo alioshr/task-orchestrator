@@ -343,15 +343,50 @@ export function updateFeature(
 /**
  * Delete a feature
  */
-export function deleteFeature(id: string): Result<boolean> {
+export function deleteFeature(id: string, options?: { cascade?: boolean }): Result<boolean> {
   try {
-    const result = transaction(() => {
-      // Check if feature exists
-      const exists = queryOne<{ id: string }>('SELECT id FROM features WHERE id = ?', [id]);
+    const cascade = options?.cascade ?? false;
 
-      if (!exists) {
-        throw new NotFoundError('Feature', id);
+    // Check if feature exists
+    const exists = queryOne<{ id: string }>('SELECT id FROM features WHERE id = ?', [id]);
+
+    if (!exists) {
+      throw new NotFoundError('Feature', id);
+    }
+
+    // Count children
+    const taskCounts = countTasksByFeature(id);
+    const taskCount = taskCounts.total;
+
+    // If children exist and no cascade, return error with counts
+    if (taskCount > 0 && !cascade) {
+      return err(
+        `Cannot delete feature: contains ${taskCount} task${taskCount > 1 ? 's' : ''}. Use cascade: true to delete all.`,
+        'HAS_CHILDREN'
+      );
+    }
+
+    const result = transaction(() => {
+      if (cascade) {
+        // Get all task IDs for this feature
+        const taskIds = queryAll<{ id: string }>(
+          'SELECT id FROM tasks WHERE feature_id = ?',
+          [id]
+        );
+
+        // Delete each task's dependencies, sections, and tags
+        for (const task of taskIds) {
+          execute('DELETE FROM dependencies WHERE from_task_id = ? OR to_task_id = ?', [task.id, task.id]);
+          execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.TASK, task.id]);
+          deleteTags(task.id, EntityType.TASK);
+        }
+
+        // Delete all tasks for this feature
+        execute('DELETE FROM tasks WHERE feature_id = ?', [id]);
       }
+
+      // Delete feature sections
+      execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.FEATURE, id]);
 
       // Delete associated tags
       deleteTags(id, EntityType.FEATURE);

@@ -1,6 +1,6 @@
-import { queryOne, queryAll, execute, generateId, now, buildSearchVector, loadTags, saveTags, deleteTags, ok, err, buildPaginationClause, countTasksByProject, type TaskCounts } from './base';
+import { queryOne, queryAll, execute, generateId, now, buildSearchVector, loadTags, saveTags, deleteTags, ok, err, buildPaginationClause, countTasksByProject, countFeaturesByProject, type TaskCounts } from './base';
 import type { Project, Result } from '../domain/types';
-import { ProjectStatus, NotFoundError, ConflictError, ValidationError } from '../domain/types';
+import { ProjectStatus, NotFoundError, ConflictError, ValidationError, EntityType } from '../domain/types';
 import { transaction } from '../db/client';
 import { isValidTransition, getAllowedTransitions, isTerminalStatus } from '../services/status-validator';
 
@@ -221,20 +221,75 @@ export function updateProject(
   }
 }
 
-export function deleteProject(id: string): Result<boolean> {
+export function deleteProject(id: string, options?: { cascade?: boolean }): Result<boolean> {
   try {
-    const result = transaction(() => {
-      const existing = queryOne<ProjectRow>(
-        'SELECT id FROM projects WHERE id = ?',
-        [id]
-      );
+    const cascade = options?.cascade ?? false;
 
-      if (!existing) {
-        throw new NotFoundError('Project', id);
+    // Check if project exists
+    const existing = queryOne<ProjectRow>(
+      'SELECT id FROM projects WHERE id = ?',
+      [id]
+    );
+
+    if (!existing) {
+      throw new NotFoundError('Project', id);
+    }
+
+    // Count children
+    const featureCount = countFeaturesByProject(id);
+    const taskCounts = countTasksByProject(id);
+    const taskCount = taskCounts.total;
+
+    // If children exist and no cascade, return error with counts
+    if ((featureCount > 0 || taskCount > 0) && !cascade) {
+      const parts: string[] = [];
+      if (featureCount > 0) parts.push(`${featureCount} feature${featureCount > 1 ? 's' : ''}`);
+      if (taskCount > 0) parts.push(`${taskCount} task${taskCount > 1 ? 's' : ''}`);
+      return err(
+        `Cannot delete project: contains ${parts.join(' and ')}. Use cascade: true to delete all.`,
+        'HAS_CHILDREN'
+      );
+    }
+
+    const result = transaction(() => {
+      if (cascade) {
+        // Get all task IDs for this project
+        const taskIds = queryAll<{ id: string }>(
+          'SELECT id FROM tasks WHERE project_id = ?',
+          [id]
+        );
+
+        // Delete each task's dependencies, sections, and tags
+        for (const task of taskIds) {
+          execute('DELETE FROM dependencies WHERE from_task_id = ? OR to_task_id = ?', [task.id, task.id]);
+          execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.TASK, task.id]);
+          deleteTags(task.id, EntityType.TASK);
+        }
+
+        // Delete all tasks for this project
+        execute('DELETE FROM tasks WHERE project_id = ?', [id]);
+
+        // Get all feature IDs for this project
+        const featureIds = queryAll<{ id: string }>(
+          'SELECT id FROM features WHERE project_id = ?',
+          [id]
+        );
+
+        // Delete each feature's sections and tags
+        for (const feature of featureIds) {
+          execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.FEATURE, feature.id]);
+          deleteTags(feature.id, EntityType.FEATURE);
+        }
+
+        // Delete all features for this project
+        execute('DELETE FROM features WHERE project_id = ?', [id]);
       }
 
-      // Delete tags first
-      deleteTags(id, 'PROJECT');
+      // Delete project sections
+      execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.PROJECT, id]);
+
+      // Delete project tags
+      deleteTags(id, EntityType.PROJECT);
 
       // Delete project
       execute('DELETE FROM projects WHERE id = ?', [id]);
