@@ -19,7 +19,7 @@ interface Migration {
 
 function loadMigrations(): Migration[] {
   const migrationsDir = join(dirname(import.meta.path), 'migrations');
-  const files = ['001_initial_schema.sql'];
+  const files = ['001_initial_schema.sql', '002_generalize_dependencies.sql'];
 
   return files.map((file, i) => ({
     version: i + 1,

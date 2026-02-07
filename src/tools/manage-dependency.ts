@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { createSuccessResponse, createErrorResponse, uuidSchema, optionalUuidSchema } from './registry';
 import { createDependency, deleteDependency } from '../repos/dependencies';
-import { DependencyType } from '../domain/types';
+import { DependencyType, DependencyEntityType } from '../domain/types';
 
 /**
  * Register the manage_dependency MCP tool.
@@ -14,17 +14,21 @@ import { DependencyType } from '../domain/types';
 export function registerManageDependencyTool(server: McpServer): void {
   server.tool(
     'manage_dependency',
-    'Manage dependencies between tasks (create, delete)',
+    'Manage dependencies between entities of the same type (create, delete). Supports task-to-task and feature-to-feature dependencies.',
     {
       operation: z
         .enum(['create', 'delete'])
         .describe('Operation to perform: create or delete'),
       id: optionalUuidSchema
         .describe('Dependency ID (required for delete operation)'),
-      fromTaskId: optionalUuidSchema
-        .describe('Source task ID (required for create operation)'),
-      toTaskId: optionalUuidSchema
-        .describe('Target task ID (required for create operation)'),
+      fromId: optionalUuidSchema
+        .describe('Source entity ID (required for create operation)'),
+      toId: optionalUuidSchema
+        .describe('Target entity ID (required for create operation)'),
+      containerType: z
+        .enum(['task', 'feature'])
+        .optional()
+        .describe('Entity type for the dependency (required for create operation)'),
       type: z
         .enum(['BLOCKS', 'IS_BLOCKED_BY', 'RELATES_TO'])
         .optional()
@@ -36,16 +40,16 @@ export function registerManageDependencyTool(server: McpServer): void {
 
         // Handle create operation
         if (operation === 'create') {
-          const { fromTaskId, toTaskId, type } = params;
+          const { fromId, toId, type, containerType } = params;
 
           // Validate required parameters for create
-          if (!fromTaskId) {
+          if (!fromId) {
             return {
               content: [
                 {
                   type: 'text' as const,
                   text: JSON.stringify(
-                    createErrorResponse('fromTaskId is required for create operation'),
+                    createErrorResponse('fromId is required for create operation'),
                     null,
                     2
                   ),
@@ -54,13 +58,28 @@ export function registerManageDependencyTool(server: McpServer): void {
             };
           }
 
-          if (!toTaskId) {
+          if (!toId) {
             return {
               content: [
                 {
                   type: 'text' as const,
                   text: JSON.stringify(
-                    createErrorResponse('toTaskId is required for create operation'),
+                    createErrorResponse('toId is required for create operation'),
+                    null,
+                    2
+                  ),
+                },
+              ],
+            };
+          }
+
+          if (!containerType) {
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: JSON.stringify(
+                    createErrorResponse('containerType is required for create operation'),
                     null,
                     2
                   ),
@@ -85,9 +104,10 @@ export function registerManageDependencyTool(server: McpServer): void {
           }
 
           const result = createDependency({
-            fromTaskId,
-            toTaskId,
+            fromEntityId: fromId,
+            toEntityId: toId,
             type: type as DependencyType,
+            entityType: containerType as DependencyEntityType,
           });
 
           if (result.success === false) {

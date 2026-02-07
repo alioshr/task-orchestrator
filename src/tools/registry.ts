@@ -8,6 +8,9 @@ const UUID_REGEX = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f
 export const uuidSchema = z.string().regex(UUID_REGEX, 'Invalid UUID').transform(v => v.replace(/-/g, '').toLowerCase());
 export const optionalUuidSchema = z.string().regex(UUID_REGEX, 'Invalid UUID').optional().transform(v => v ? v.replace(/-/g, '').toLowerCase() : undefined);
 
+// Shared container type schema for dependency tools
+export const dependencyContainerTypeSchema = z.enum(['task', 'feature']);
+
 // --- Tool Definition interface ---
 export interface ToolDefinition {
   name: string;

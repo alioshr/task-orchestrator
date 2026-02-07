@@ -1,5 +1,7 @@
 import { ProjectStatus, FeatureStatus, TaskStatus } from '../domain/types';
 
+type TransitionMap = Record<string, string[]>;
+
 // Valid statuses per container type
 const PROJECT_STATUSES = Object.values(ProjectStatus);
 const FEATURE_STATUSES = Object.values(FeatureStatus);
@@ -12,44 +14,44 @@ const TASK_STATUSES = Object.values(TaskStatus);
  * They allow transitions back to earlier workflow stages (BACKLOG/PENDING for tasks,
  * PLANNING for projects) to support reinstating cancelled or deferred work.
  */
-const PROJECT_TRANSITIONS: Record<string, string[]> = {
-  PLANNING: ['IN_DEVELOPMENT', 'ON_HOLD', 'CANCELLED'],
-  IN_DEVELOPMENT: ['COMPLETED', 'ON_HOLD', 'CANCELLED'],
-  ON_HOLD: ['PLANNING', 'IN_DEVELOPMENT', 'CANCELLED'],
-  COMPLETED: ['ARCHIVED'],
-  CANCELLED: ['PLANNING'], // Non-terminal: allows reinstating cancelled projects
-  ARCHIVED: [],
+export const PROJECT_TRANSITIONS: Record<ProjectStatus, ProjectStatus[]> = {
+  [ProjectStatus.PLANNING]: [ProjectStatus.IN_DEVELOPMENT, ProjectStatus.ON_HOLD, ProjectStatus.CANCELLED],
+  [ProjectStatus.IN_DEVELOPMENT]: [ProjectStatus.COMPLETED, ProjectStatus.ON_HOLD, ProjectStatus.CANCELLED],
+  [ProjectStatus.ON_HOLD]: [ProjectStatus.PLANNING, ProjectStatus.IN_DEVELOPMENT, ProjectStatus.CANCELLED],
+  [ProjectStatus.COMPLETED]: [ProjectStatus.ARCHIVED],
+  [ProjectStatus.CANCELLED]: [ProjectStatus.PLANNING], // Non-terminal: allows reinstating cancelled projects
+  [ProjectStatus.ARCHIVED]: [],
 };
 
-const FEATURE_TRANSITIONS: Record<string, string[]> = {
-  DRAFT: ['PLANNING'],
-  PLANNING: ['IN_DEVELOPMENT', 'ON_HOLD'],
-  IN_DEVELOPMENT: ['TESTING', 'BLOCKED', 'ON_HOLD'],
-  TESTING: ['VALIDATING', 'IN_DEVELOPMENT'],
-  VALIDATING: ['PENDING_REVIEW', 'IN_DEVELOPMENT'],
-  PENDING_REVIEW: ['DEPLOYED', 'IN_DEVELOPMENT'],
-  BLOCKED: ['IN_DEVELOPMENT', 'ON_HOLD'],
-  ON_HOLD: ['PLANNING', 'IN_DEVELOPMENT'],
-  DEPLOYED: ['COMPLETED'],
-  COMPLETED: ['ARCHIVED'],
-  ARCHIVED: [],
+export const FEATURE_TRANSITIONS: Record<FeatureStatus, FeatureStatus[]> = {
+  [FeatureStatus.DRAFT]: [FeatureStatus.PLANNING],
+  [FeatureStatus.PLANNING]: [FeatureStatus.IN_DEVELOPMENT, FeatureStatus.ON_HOLD],
+  [FeatureStatus.IN_DEVELOPMENT]: [FeatureStatus.TESTING, FeatureStatus.BLOCKED, FeatureStatus.ON_HOLD],
+  [FeatureStatus.TESTING]: [FeatureStatus.VALIDATING, FeatureStatus.IN_DEVELOPMENT],
+  [FeatureStatus.VALIDATING]: [FeatureStatus.PENDING_REVIEW, FeatureStatus.IN_DEVELOPMENT],
+  [FeatureStatus.PENDING_REVIEW]: [FeatureStatus.DEPLOYED, FeatureStatus.IN_DEVELOPMENT],
+  [FeatureStatus.BLOCKED]: [FeatureStatus.IN_DEVELOPMENT, FeatureStatus.ON_HOLD],
+  [FeatureStatus.ON_HOLD]: [FeatureStatus.PLANNING, FeatureStatus.IN_DEVELOPMENT],
+  [FeatureStatus.DEPLOYED]: [FeatureStatus.COMPLETED],
+  [FeatureStatus.COMPLETED]: [FeatureStatus.ARCHIVED],
+  [FeatureStatus.ARCHIVED]: [],
 };
 
-const TASK_TRANSITIONS: Record<string, string[]> = {
-  BACKLOG: ['PENDING'],
-  PENDING: ['IN_PROGRESS', 'BLOCKED', 'ON_HOLD', 'CANCELLED', 'DEFERRED'],
-  IN_PROGRESS: ['IN_REVIEW', 'TESTING', 'BLOCKED', 'ON_HOLD', 'COMPLETED'],
-  IN_REVIEW: ['CHANGES_REQUESTED', 'COMPLETED'],
-  CHANGES_REQUESTED: ['IN_PROGRESS'],
-  TESTING: ['READY_FOR_QA', 'IN_PROGRESS'],
-  READY_FOR_QA: ['INVESTIGATING', 'DEPLOYED', 'COMPLETED'],
-  INVESTIGATING: ['IN_PROGRESS', 'BLOCKED'],
-  BLOCKED: ['PENDING', 'IN_PROGRESS'],
-  ON_HOLD: ['PENDING', 'IN_PROGRESS'],
-  DEPLOYED: ['COMPLETED'],
-  COMPLETED: [], // Terminal: no transitions allowed
-  CANCELLED: ['BACKLOG', 'PENDING'], // Non-terminal: allows reinstating cancelled tasks
-  DEFERRED: ['BACKLOG', 'PENDING'], // Non-terminal: allows resuming deferred tasks
+export const TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
+  [TaskStatus.BACKLOG]: [TaskStatus.PENDING],
+  [TaskStatus.PENDING]: [TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED, TaskStatus.ON_HOLD, TaskStatus.CANCELLED, TaskStatus.DEFERRED],
+  [TaskStatus.IN_PROGRESS]: [TaskStatus.IN_REVIEW, TaskStatus.TESTING, TaskStatus.BLOCKED, TaskStatus.ON_HOLD, TaskStatus.COMPLETED],
+  [TaskStatus.IN_REVIEW]: [TaskStatus.CHANGES_REQUESTED, TaskStatus.COMPLETED],
+  [TaskStatus.CHANGES_REQUESTED]: [TaskStatus.IN_PROGRESS],
+  [TaskStatus.TESTING]: [TaskStatus.READY_FOR_QA, TaskStatus.IN_PROGRESS],
+  [TaskStatus.READY_FOR_QA]: [TaskStatus.INVESTIGATING, TaskStatus.DEPLOYED, TaskStatus.COMPLETED],
+  [TaskStatus.INVESTIGATING]: [TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED],
+  [TaskStatus.BLOCKED]: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
+  [TaskStatus.ON_HOLD]: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
+  [TaskStatus.DEPLOYED]: [TaskStatus.COMPLETED],
+  [TaskStatus.COMPLETED]: [], // Terminal: no transitions allowed
+  [TaskStatus.CANCELLED]: [TaskStatus.BACKLOG, TaskStatus.PENDING], // Non-terminal: allows reinstating cancelled tasks
+  [TaskStatus.DEFERRED]: [TaskStatus.BACKLOG, TaskStatus.PENDING], // Non-terminal: allows resuming deferred tasks
 };
 
 // Terminal statuses (no transitions out)
@@ -77,7 +79,7 @@ export function getValidStatuses(containerType: ContainerType): string[] {
   }
 }
 
-export function getTransitions(containerType: ContainerType): Record<string, string[]> {
+export function getTransitions(containerType: ContainerType): TransitionMap {
   switch (containerType) {
     case 'project': return PROJECT_TRANSITIONS;
     case 'feature': return FEATURE_TRANSITIONS;

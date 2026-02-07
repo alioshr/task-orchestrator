@@ -23,6 +23,8 @@ export { registerRenameTagTool } from './rename-tag';
 // Workflow tools
 export { registerGetNextTaskTool } from './get-next-task';
 export { registerGetBlockedTasksTool } from './get-blocked-tasks';
+export { registerGetNextFeatureTool } from './get-next-feature';
+export { registerGetBlockedFeaturesTool } from './get-blocked-features';
 export { registerGetNextStatusTool } from './get-next-status';
 export { registerQueryWorkflowStateTool } from './query-workflow-state';
 

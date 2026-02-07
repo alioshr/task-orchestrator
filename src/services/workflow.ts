@@ -6,6 +6,7 @@ import { getTask } from '../repos/tasks';
 import { getDependencies } from '../repos/dependencies';
 import { searchTasks } from '../repos/tasks';
 import type { Result } from '../domain/types';
+import { DependencyEntityType } from '../domain/types';
 import { ok, err } from '../repos/base';
 
 export interface WorkflowState {
@@ -16,8 +17,8 @@ export interface WorkflowState {
   isTerminal: boolean;
   cascadeEvents?: string[];
   blockingDependencies?: Array<{
-    taskId: string;
-    taskTitle: string;
+    entityId: string;
+    entityName: string;
     status: string;
   }>;
 }
@@ -60,24 +61,50 @@ export function getWorkflowState(containerType: ContainerType, id: string): Resu
     isTerminal,
   };
 
-  // 4. For tasks, check blocking dependencies
+  // 4. For tasks and features, check blocking dependencies
   if (containerType === 'task') {
-    const depsResult = getDependencies(id, 'dependents');
+    // 'dependents' finds deps where to_entity_id = id, i.e. deps where this entity is the blocked one
+    const depsResult = getDependencies(id, 'dependents', DependencyEntityType.TASK);
     if (depsResult.success) {
       const blockers = depsResult.data
         .filter(d => d.type === 'BLOCKS')
         .map(d => {
-          const taskResult = getTask(d.fromTaskId);
+          const taskResult = getTask(d.fromEntityId);
           if (taskResult.success) {
             return {
-              taskId: d.fromTaskId,
-              taskTitle: taskResult.data.title,
+              entityId: d.fromEntityId,
+              entityName: taskResult.data.title,
               status: taskResult.data.status,
             };
           }
-          return { taskId: d.fromTaskId, taskTitle: 'Unknown', status: 'UNKNOWN' };
+          return { entityId: d.fromEntityId, entityName: 'Unknown', status: 'UNKNOWN' };
         })
         .filter(b => b.status !== 'COMPLETED' && b.status !== 'CANCELLED');
+
+      if (blockers.length > 0) {
+        state.blockingDependencies = blockers;
+      }
+    }
+  }
+
+  if (containerType === 'feature') {
+    // 'dependents' finds deps where to_entity_id = id, i.e. deps where this entity is the blocked one
+    const depsResult = getDependencies(id, 'dependents', DependencyEntityType.FEATURE);
+    if (depsResult.success) {
+      const blockers = depsResult.data
+        .filter(d => d.type === 'BLOCKS')
+        .map(d => {
+          const featureResult = getFeature(d.fromEntityId);
+          if (featureResult.success) {
+            return {
+              entityId: d.fromEntityId,
+              entityName: featureResult.data.name,
+              status: featureResult.data.status,
+            };
+          }
+          return { entityId: d.fromEntityId, entityName: 'Unknown', status: 'UNKNOWN' };
+        })
+        .filter(b => b.status !== 'COMPLETED' && b.status !== 'ARCHIVED');
 
       if (blockers.length > 0) {
         state.blockingDependencies = blockers;

@@ -5,26 +5,24 @@ import { getNext } from '../repos/dependencies';
 import { DependencyEntityType } from '../domain/types';
 
 /**
- * Register the get_next_task MCP tool.
+ * Register the get_next_feature MCP tool.
  *
- * Recommends the next task to work on by priority and complexity,
- * excluding blocked tasks.
+ * Recommends the next feature to work on by priority,
+ * excluding blocked features.
  */
-export function registerGetNextTaskTool(server: McpServer): void {
+export function registerGetNextFeatureTool(server: McpServer): void {
   server.tool(
-    'get_next_task',
-    'Get the next recommended task to work on. Returns the highest priority PENDING task that has no incomplete blocking dependencies. Tasks are prioritized by priority (HIGH > MEDIUM > LOW), then by complexity (simpler first), then by creation time.',
+    'get_next_feature',
+    'Get the next recommended feature to work on. Returns the highest priority DRAFT or PLANNING feature that has no incomplete blocking dependencies. Features are prioritized by priority (HIGH > MEDIUM > LOW), then by creation time.',
     {
       projectId: optionalUuidSchema.describe('Filter by project ID'),
-      featureId: optionalUuidSchema.describe('Filter by feature ID'),
       priority: z.string().optional().describe('Filter by priority (HIGH, MEDIUM, LOW)')
     },
     async (params: any) => {
       try {
         const result = getNext({
-          entityType: DependencyEntityType.TASK,
+          entityType: DependencyEntityType.FEATURE,
           projectId: params.projectId,
-          featureId: params.featureId,
           priority: params.priority
         });
 
@@ -42,7 +40,7 @@ export function registerGetNextTaskTool(server: McpServer): void {
             content: [{
               type: 'text' as const,
               text: JSON.stringify(
-                createSuccessResponse('No available tasks found matching the criteria', null),
+                createSuccessResponse('No available features found matching the criteria', null),
                 null,
                 2
               )
@@ -54,7 +52,7 @@ export function registerGetNextTaskTool(server: McpServer): void {
           content: [{
             type: 'text' as const,
             text: JSON.stringify(
-              createSuccessResponse('Next task retrieved successfully', result.data),
+              createSuccessResponse('Next feature retrieved successfully', result.data),
               null,
               2
             )
@@ -65,7 +63,7 @@ export function registerGetNextTaskTool(server: McpServer): void {
           content: [{
             type: 'text' as const,
             text: JSON.stringify(
-              createErrorResponse('Failed to get next task', error.message),
+              createErrorResponse('Failed to get next feature', error.message),
               null,
               2
             )

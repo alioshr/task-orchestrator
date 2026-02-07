@@ -355,8 +355,8 @@ export function deleteTask(id: string): Result<boolean> {
     db.run('BEGIN TRANSACTION');
 
     try {
-      // Delete related dependencies
-      execute('DELETE FROM dependencies WHERE from_task_id = ? OR to_task_id = ?', [id, id]);
+      // Delete related dependencies (scoped to task entity type)
+      execute('DELETE FROM dependencies WHERE (from_entity_id = ? OR to_entity_id = ?) AND entity_type = ?', [id, id, 'task']);
 
       // Delete related sections
       execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.TASK, id]);

@@ -76,6 +76,11 @@ export enum DependencyType {
   RELATES_TO = 'RELATES_TO'
 }
 
+export enum DependencyEntityType {
+  TASK = 'task',
+  FEATURE = 'feature'
+}
+
 export enum LockStatus {
   UNLOCKED = 'UNLOCKED',
   LOCKED_EXCLUSIVE = 'LOCKED_EXCLUSIVE',
@@ -177,8 +182,9 @@ export interface TemplateSection {
 
 export interface Dependency {
   id: string;
-  fromTaskId: string;
-  toTaskId: string;
+  fromEntityId: string;
+  toEntityId: string;
+  entityType: DependencyEntityType;
   type: DependencyType;
   createdAt: Date;
 }

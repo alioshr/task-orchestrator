@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { createSuccessResponse, createErrorResponse, uuidSchema } from './registry';
 import { getDependencies } from '../repos/dependencies';
+import { DependencyEntityType } from '../domain/types';
 
 /**
  * Register the query_dependencies MCP tool.
@@ -13,9 +14,12 @@ import { getDependencies } from '../repos/dependencies';
 export function registerQueryDependenciesTool(server: McpServer): void {
   server.tool(
     'query_dependencies',
-    'Query dependencies for a task',
+    'Query dependencies for an entity (task or feature)',
     {
-      taskId: uuidSchema.describe('Task ID'),
+      id: uuidSchema.describe('Entity ID (task or feature)'),
+      containerType: z
+        .enum(['task', 'feature'])
+        .describe('Entity type to query dependencies for'),
       direction: z
         .enum(['dependencies', 'dependents', 'both'])
         .optional()
@@ -24,7 +28,7 @@ export function registerQueryDependenciesTool(server: McpServer): void {
     },
     async (params) => {
       try {
-        const result = getDependencies(params.taskId, params.direction);
+        const result = getDependencies(params.id, params.direction, params.containerType as DependencyEntityType);
 
         if (result.success === false) {
           return {

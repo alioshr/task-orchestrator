@@ -5,25 +5,23 @@ import { getBlocked } from '../repos/dependencies';
 import { DependencyEntityType } from '../domain/types';
 
 /**
- * Register the get_blocked_tasks MCP tool.
+ * Register the get_blocked_features MCP tool.
  *
- * Returns all blocked tasks, either with status 'BLOCKED' or tasks
+ * Returns all blocked features, either with status 'BLOCKED' or features
  * that have incomplete blocking dependencies.
  */
-export function registerGetBlockedTasksTool(server: McpServer): void {
+export function registerGetBlockedFeaturesTool(server: McpServer): void {
   server.tool(
-    'get_blocked_tasks',
-    'Get all blocked tasks. Returns tasks that either have status BLOCKED or have incomplete blocking dependencies (tasks that block them but are not completed). Results are sorted by priority (descending) then creation time (ascending).',
+    'get_blocked_features',
+    'Get all blocked features. Returns features that either have status BLOCKED or have incomplete blocking dependencies (features that block them but are not completed/archived). Results are sorted by priority (descending) then creation time (ascending).',
     {
-      projectId: optionalUuidSchema.describe('Filter by project ID'),
-      featureId: optionalUuidSchema.describe('Filter by feature ID')
+      projectId: optionalUuidSchema.describe('Filter by project ID')
     },
     async (params: any) => {
       try {
         const result = getBlocked({
-          entityType: DependencyEntityType.TASK,
-          projectId: params.projectId,
-          featureId: params.featureId
+          entityType: DependencyEntityType.FEATURE,
+          projectId: params.projectId
         });
 
         if (!result.success) {
@@ -40,7 +38,7 @@ export function registerGetBlockedTasksTool(server: McpServer): void {
             type: 'text' as const,
             text: JSON.stringify(
               createSuccessResponse(
-                `Found ${result.data.length} blocked task(s)`,
+                `Found ${result.data.length} blocked feature(s)`,
                 result.data
               ),
               null,
@@ -53,7 +51,7 @@ export function registerGetBlockedTasksTool(server: McpServer): void {
           content: [{
             type: 'text' as const,
             text: JSON.stringify(
-              createErrorResponse('Failed to get blocked tasks', error.message),
+              createErrorResponse('Failed to get blocked features', error.message),
               null,
               2
             )

@@ -538,7 +538,6 @@ describe('deleteProject', () => {
     if (!feature.success) return;
 
     const task = createTask({
-      projectId: project.data.id,
       featureId: feature.data.id,
       title: 'Task to Delete',
       summary: 'Child task',
@@ -585,7 +584,6 @@ describe('deleteProject', () => {
     if (!feature.success) return;
 
     const task = createTask({
-      projectId: project.data.id,
       featureId: feature.data.id,
       title: 'Tagged Task',
       summary: 'Has tags',

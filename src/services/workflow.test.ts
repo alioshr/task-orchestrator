@@ -5,7 +5,7 @@ import { createProject } from '../repos/projects';
 import { createFeature } from '../repos/features';
 import { createTask } from '../repos/tasks';
 import { createDependency } from '../repos/dependencies';
-import { ProjectStatus, FeatureStatus, TaskStatus, Priority, DependencyType } from '../domain/types';
+import { ProjectStatus, FeatureStatus, TaskStatus, Priority, DependencyType, DependencyEntityType } from '../domain/types';
 
 beforeEach(() => {
   db.run('DELETE FROM dependencies');
@@ -279,8 +279,9 @@ describe('getWorkflowState - tasks', () => {
     if (!task1Result.success || !task2Result.success) return;
 
     const depResult = createDependency({
-      fromTaskId: task1Result.data.id,
-      toTaskId: task2Result.data.id,
+      fromEntityId: task1Result.data.id,
+      toEntityId: task2Result.data.id,
+      entityType: DependencyEntityType.TASK,
       type: DependencyType.BLOCKS
     });
 
@@ -292,8 +293,8 @@ describe('getWorkflowState - tasks', () => {
     if (result.success) {
       expect(result.data.blockingDependencies).toBeDefined();
       expect(result.data.blockingDependencies?.length).toBe(1);
-      expect(result.data.blockingDependencies?.[0]?.taskId).toBe(task1Result.data.id);
-      expect(result.data.blockingDependencies?.[0]?.taskTitle).toBe('Blocking Task');
+      expect(result.data.blockingDependencies?.[0]?.entityId).toBe(task1Result.data.id);
+      expect(result.data.blockingDependencies?.[0]?.entityName).toBe('Blocking Task');
       expect(result.data.blockingDependencies?.[0]?.status).toBe('IN_PROGRESS');
     }
   });
@@ -320,8 +321,9 @@ describe('getWorkflowState - tasks', () => {
     if (!task1Result.success || !task2Result.success) return;
 
     const depResult = createDependency({
-      fromTaskId: task1Result.data.id,
-      toTaskId: task2Result.data.id,
+      fromEntityId: task1Result.data.id,
+      toEntityId: task2Result.data.id,
+      entityType: DependencyEntityType.TASK,
       type: DependencyType.BLOCKS
     });
 
@@ -357,8 +359,9 @@ describe('getWorkflowState - tasks', () => {
     if (!task1Result.success || !task2Result.success) return;
 
     const depResult = createDependency({
-      fromTaskId: task1Result.data.id,
-      toTaskId: task2Result.data.id,
+      fromEntityId: task1Result.data.id,
+      toEntityId: task2Result.data.id,
+      entityType: DependencyEntityType.TASK,
       type: DependencyType.BLOCKS
     });
 
@@ -424,14 +427,16 @@ describe('getWorkflowState - tasks', () => {
     if (!blocker1Result.success || !blocker2Result.success || !blockedTaskResult.success) return;
 
     const dep1Result = createDependency({
-      fromTaskId: blocker1Result.data.id,
-      toTaskId: blockedTaskResult.data.id,
+      fromEntityId: blocker1Result.data.id,
+      toEntityId: blockedTaskResult.data.id,
+      entityType: DependencyEntityType.TASK,
       type: DependencyType.BLOCKS
     });
 
     const dep2Result = createDependency({
-      fromTaskId: blocker2Result.data.id,
-      toTaskId: blockedTaskResult.data.id,
+      fromEntityId: blocker2Result.data.id,
+      toEntityId: blockedTaskResult.data.id,
+      entityType: DependencyEntityType.TASK,
       type: DependencyType.BLOCKS
     });
 

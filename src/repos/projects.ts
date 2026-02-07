@@ -268,7 +268,7 @@ export function deleteProject(id: string, options?: { cascade?: boolean }): Resu
 
         // Delete each task's dependencies, sections, and tags
         for (const task of taskIds) {
-          execute('DELETE FROM dependencies WHERE from_task_id = ? OR to_task_id = ?', [task.id, task.id]);
+          execute('DELETE FROM dependencies WHERE (from_entity_id = ? OR to_entity_id = ?) AND entity_type = ?', [task.id, task.id, 'task']);
           execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.TASK, task.id]);
           deleteTags(task.id, EntityType.TASK);
         }
@@ -280,8 +280,9 @@ export function deleteProject(id: string, options?: { cascade?: boolean }): Resu
           [id, id]
         );
 
-        // Delete each feature's sections and tags
+        // Delete each feature's dependencies, sections, and tags
         for (const feature of featureIds) {
+          execute('DELETE FROM dependencies WHERE (from_entity_id = ? OR to_entity_id = ?) AND entity_type = ?', [feature.id, feature.id, 'feature']);
           execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.FEATURE, feature.id]);
           deleteTags(feature.id, EntityType.FEATURE);
         }

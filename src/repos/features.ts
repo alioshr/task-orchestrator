@@ -376,7 +376,7 @@ export function deleteFeature(id: string, options?: { cascade?: boolean }): Resu
 
         // Delete each task's dependencies, sections, and tags
         for (const task of taskIds) {
-          execute('DELETE FROM dependencies WHERE from_task_id = ? OR to_task_id = ?', [task.id, task.id]);
+          execute('DELETE FROM dependencies WHERE (from_entity_id = ? OR to_entity_id = ?) AND entity_type = ?', [task.id, task.id, 'task']);
           execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.TASK, task.id]);
           deleteTags(task.id, EntityType.TASK);
         }
@@ -384,6 +384,9 @@ export function deleteFeature(id: string, options?: { cascade?: boolean }): Resu
         // Delete all tasks for this feature
         execute('DELETE FROM tasks WHERE feature_id = ?', [id]);
       }
+
+      // Delete feature-level dependencies
+      execute('DELETE FROM dependencies WHERE (from_entity_id = ? OR to_entity_id = ?) AND entity_type = ?', [id, id, 'feature']);
 
       // Delete feature sections
       execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.FEATURE, id]);

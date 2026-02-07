@@ -18,6 +18,8 @@ import {
   registerRenameTagTool,
   registerGetNextTaskTool,
   registerGetBlockedTasksTool,
+  registerGetNextFeatureTool,
+  registerGetBlockedFeaturesTool,
   registerGetNextStatusTool,
   registerQueryWorkflowStateTool,
   registerSetupProjectTool,
@@ -47,6 +49,8 @@ registerGetTagUsageTool(server);
 registerRenameTagTool(server);
 registerGetNextTaskTool(server);
 registerGetBlockedTasksTool(server);
+registerGetNextFeatureTool(server);
+registerGetBlockedFeaturesTool(server);
 registerGetNextStatusTool(server);
 registerQueryWorkflowStateTool(server);
 registerSetupProjectTool(server);
@@ -105,6 +109,8 @@ if (useHttp) {
       registerRenameTagTool(sessionServer);
       registerGetNextTaskTool(sessionServer);
       registerGetBlockedTasksTool(sessionServer);
+      registerGetNextFeatureTool(sessionServer);
+      registerGetBlockedFeaturesTool(sessionServer);
       registerGetNextStatusTool(sessionServer);
       registerQueryWorkflowStateTool(sessionServer);
       registerSetupProjectTool(sessionServer);
