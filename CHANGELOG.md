@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/alioshr/task-orchestrator/compare/v1.1.0...v1.1.1) (2026-02-07)
+
+
+### Bug Fixes
+
+* cascade delete tasks under features without project_id ([108dfd4](https://github.com/alioshr/task-orchestrator/commit/108dfd492f9202fbf64bf9704d4dd02d4d2c5cac))
+
 # [1.1.0](https://github.com/alioshr/task-orchestrator/compare/v1.0.3...v1.1.0) (2026-02-07)
 
 
