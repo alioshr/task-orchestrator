@@ -29,10 +29,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update npm for OIDC support
+        run: npm install -g npm@latest
 
       - name: Semantic Release
-        id: semantic
         run: bunx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -46,6 +47,6 @@ jobs:
           if npm view @allpepper/task-orchestrator@$VERSION version 2>/dev/null; then
             echo "Version $VERSION already published, skipping"
           else
-            echo "Publishing version $VERSION"
-            npm publish --provenance --access public
+            echo "Publishing version $VERSION with OIDC provenance"
+            npm publish --provenance --access public --registry https://registry.npmjs.org
           fi
