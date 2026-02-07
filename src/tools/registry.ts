@@ -2,10 +2,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 // --- Shared UUID schemas ---
-// These schemas accept standard dashed UUIDs and transform them to dashless format
-// to match the storage format in the database
-export const uuidSchema = z.string().uuid().transform(v => v.replace(/-/g, '').toLowerCase());
-export const optionalUuidSchema = z.string().uuid().optional().transform(v => v ? v.replace(/-/g, '').toLowerCase() : undefined);
+// Accept both dashed (550e8400-e29b-41d4-a716-446655440000) and dashless (550e8400e29b41d4a716446655440000) UUIDs.
+// Always transform to dashless lowercase to match the DB storage format.
+const UUID_REGEX = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+export const uuidSchema = z.string().regex(UUID_REGEX, 'Invalid UUID').transform(v => v.replace(/-/g, '').toLowerCase());
+export const optionalUuidSchema = z.string().regex(UUID_REGEX, 'Invalid UUID').optional().transform(v => v ? v.replace(/-/g, '').toLowerCase() : undefined);
 
 // --- Tool Definition interface ---
 export interface ToolDefinition {

@@ -7,8 +7,18 @@ describe("uuidSchema", () => {
     expect(result).toBe("550e8400e29b41d4a716446655440000");
   });
 
+  test("accepts dashless UUID as-is", () => {
+    const result = uuidSchema.parse("550e8400e29b41d4a716446655440000");
+    expect(result).toBe("550e8400e29b41d4a716446655440000");
+  });
+
   test("lowercases UUID", () => {
     const result = uuidSchema.parse("550E8400-E29B-41D4-A716-446655440000");
+    expect(result).toBe("550e8400e29b41d4a716446655440000");
+  });
+
+  test("lowercases dashless UUID", () => {
+    const result = uuidSchema.parse("550E8400E29B41D4A716446655440000");
     expect(result).toBe("550e8400e29b41d4a716446655440000");
   });
 
@@ -25,6 +35,11 @@ describe("optionalUuidSchema", () => {
 
   test("strips dashes when provided", () => {
     const result = optionalUuidSchema.parse("550e8400-e29b-41d4-a716-446655440000");
+    expect(result).toBe("550e8400e29b41d4a716446655440000");
+  });
+
+  test("accepts dashless when provided", () => {
+    const result = optionalUuidSchema.parse("550e8400e29b41d4a716446655440000");
     expect(result).toBe("550e8400e29b41d4a716446655440000");
   });
 });
