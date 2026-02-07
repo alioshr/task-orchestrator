@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/alioshr/task-orchestrator/compare/v1.0.0...v1.0.1) (2026-02-07)
+
+
+### Bug Fixes
+
+* update npm for OIDC support and remove registry-url conflict ([67f2735](https://github.com/alioshr/task-orchestrator/commit/67f2735ef6e05db21bc8e98c0cf6cfd394b21662))
+
 # 1.0.0 (2026-02-07)
 
 
