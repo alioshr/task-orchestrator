@@ -122,7 +122,15 @@ export function createDependency(params: {
   type: DependencyType;
   entityType: DependencyEntityType;
 }): Result<Dependency> {
-  const { fromEntityId, toEntityId, type, entityType } = params;
+  let { fromEntityId, toEntityId, type, entityType } = params;
+
+  // Normalize IS_BLOCKED_BY → BLOCKS by swapping from/to.
+  // This keeps a single canonical form in the DB so all downstream
+  // queries only need to handle BLOCKS direction.
+  if (type === 'IS_BLOCKED_BY') {
+    [fromEntityId, toEntityId] = [toEntityId, fromEntityId];
+    type = 'BLOCKS' as DependencyType;
+  }
 
   // Validate: no self-dependency
   if (fromEntityId === toEntityId) {
@@ -149,11 +157,10 @@ export function createDependency(params: {
     return err(`${entityType} not found: ${toEntityId}`, 'NOT_FOUND');
   }
 
-  // Validate: no circular dependencies for BLOCKS and IS_BLOCKED_BY types
+  // Validate: no circular dependencies for BLOCKS type
+  // (IS_BLOCKED_BY is already normalized to BLOCKS above, RELATES_TO has no direction)
   const isCircular = type === 'BLOCKS'
     ? hasCircularDependency(fromEntityId, toEntityId, entityType)
-    : type === 'IS_BLOCKED_BY'
-    ? hasCircularDependency(toEntityId, fromEntityId, entityType)
     : false;
 
   if (isCircular) {

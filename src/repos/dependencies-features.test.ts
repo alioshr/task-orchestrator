@@ -82,9 +82,10 @@ describe('feature-level dependency CRUD', () => {
     }
   });
 
-  it('should create a feature→feature IS_BLOCKED_BY dependency', () => {
+  it('should normalize IS_BLOCKED_BY to BLOCKS with swapped from/to', () => {
     const { featureA, featureB } = setupFeatures();
 
+    // "A IS_BLOCKED_BY B" should be stored as "B BLOCKS A"
     const result = createDependency({
       fromEntityId: featureA.id,
       toEntityId: featureB.id,
@@ -94,7 +95,9 @@ describe('feature-level dependency CRUD', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.type).toBe(DependencyType.IS_BLOCKED_BY);
+      expect(result.data.type).toBe(DependencyType.BLOCKS);
+      expect(result.data.fromEntityId).toBe(featureB.id);
+      expect(result.data.toEntityId).toBe(featureA.id);
     }
   });
 
@@ -335,6 +338,34 @@ describe('getNext for features', () => {
     if (result.success) {
       expect(result.data).not.toBeNull();
       expect(result.data!.id).toBe(featureB.id);
+    }
+  });
+
+  it('should exclude feature blocked via IS_BLOCKED_BY', () => {
+    const { featureA, featureB, project } = setupFeatures({
+      statusA: FeatureStatus.DRAFT,
+      statusB: FeatureStatus.DRAFT,
+      priorityA: Priority.HIGH,
+      priorityB: Priority.HIGH,
+    });
+
+    // "B IS_BLOCKED_BY A" — normalized to "A BLOCKS B", so getNext should return A
+    createDependency({
+      fromEntityId: featureB.id,
+      toEntityId: featureA.id,
+      type: DependencyType.IS_BLOCKED_BY,
+      entityType: DependencyEntityType.FEATURE,
+    });
+
+    const result = getNext({
+      entityType: DependencyEntityType.FEATURE,
+      projectId: project.id,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).not.toBeNull();
+      expect(result.data!.id).toBe(featureA.id);
     }
   });
 
