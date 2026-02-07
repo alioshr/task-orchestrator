@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/alioshr/task-orchestrator/compare/v1.0.1...v1.0.2) (2026-02-07)
+
+
+### Bug Fixes
+
+* export domain types from barrel export ([2571238](https://github.com/alioshr/task-orchestrator/commit/25712382bbd44242679dba8083f0fdc2d4a14000))
+
 ## [1.0.1](https://github.com/alioshr/task-orchestrator/compare/v1.0.0...v1.0.1) (2026-02-07)
 
 
