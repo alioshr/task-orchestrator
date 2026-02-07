@@ -600,6 +600,53 @@ describe('deleteProject', () => {
     expect(featureTags.length).toBe(0);
     expect(taskTags.length).toBe(0);
   });
+
+  it('should delete tasks that only have feature_id set (not project_id) when cascade is true', () => {
+    const project = createProject({
+      name: 'Project with Feature-only Tasks',
+      summary: 'Has tasks under features without project_id'
+    });
+    expect(project.success).toBe(true);
+    if (!project.success) return;
+
+    const feature = createFeature({
+      projectId: project.data.id,
+      name: 'Feature with Task',
+      summary: 'Has a task',
+      priority: Priority.HIGH
+    });
+    expect(feature.success).toBe(true);
+    if (!feature.success) return;
+
+    // Create task with only feature_id, no project_id
+    const task = createTask({
+      featureId: feature.data.id,
+      // NOTE: not setting projectId
+      title: 'Task under Feature Only',
+      summary: 'Only has feature_id',
+      priority: Priority.MEDIUM,
+      complexity: 3
+    });
+    expect(task.success).toBe(true);
+    if (!task.success) return;
+
+    // Verify task has no project_id
+    const taskCheck = getTask(task.data.id);
+    expect(taskCheck.success).toBe(true);
+    if (taskCheck.success) {
+      expect(taskCheck.data.projectId).toBeUndefined();
+      expect(taskCheck.data.featureId).toBe(feature.data.id);
+    }
+
+    const result = deleteProject(project.data.id, { cascade: true });
+
+    expect(result.success).toBe(true);
+
+    // Verify all are deleted
+    expect(getProject(project.data.id).success).toBe(false);
+    expect(getFeature(feature.data.id).success).toBe(false);
+    expect(getTask(task.data.id).success).toBe(false);
+  });
 });
 
 describe('searchProjects', () => {

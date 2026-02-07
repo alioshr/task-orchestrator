@@ -253,10 +253,17 @@ export function deleteProject(id: string, options?: { cascade?: boolean }): Resu
 
     const result = transaction(() => {
       if (cascade) {
-        // Get all task IDs for this project
-        const taskIds = queryAll<{ id: string }>(
-          'SELECT id FROM tasks WHERE project_id = ?',
+        // Get all feature IDs for this project first (needed for task cleanup)
+        const featureIds = queryAll<{ id: string }>(
+          'SELECT id FROM features WHERE project_id = ?',
           [id]
+        );
+
+        // Get all task IDs: tasks directly under project OR under features of this project
+        const taskIds = queryAll<{ id: string }>(
+          `SELECT id FROM tasks WHERE project_id = ?
+           OR feature_id IN (SELECT id FROM features WHERE project_id = ?)`,
+          [id, id]
         );
 
         // Delete each task's dependencies, sections, and tags
@@ -266,13 +273,11 @@ export function deleteProject(id: string, options?: { cascade?: boolean }): Resu
           deleteTags(task.id, EntityType.TASK);
         }
 
-        // Delete all tasks for this project
-        execute('DELETE FROM tasks WHERE project_id = ?', [id]);
-
-        // Get all feature IDs for this project
-        const featureIds = queryAll<{ id: string }>(
-          'SELECT id FROM features WHERE project_id = ?',
-          [id]
+        // Delete all tasks: directly under project OR under features of this project
+        execute(
+          `DELETE FROM tasks WHERE project_id = ?
+           OR feature_id IN (SELECT id FROM features WHERE project_id = ?)`,
+          [id, id]
         );
 
         // Delete each feature's sections and tags
