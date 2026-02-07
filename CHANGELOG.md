@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/alioshr/task-orchestrator/compare/v1.2.0...v1.2.1) (2026-02-07)
+
+
+### Bug Fixes
+
+* normalize IS_BLOCKED_BY to BLOCKS at write time in createDependency ([a30979b](https://github.com/alioshr/task-orchestrator/commit/a30979b7f6fd1bbbbcf347afd10bc28f1731c25d))
+
 # [1.2.0](https://github.com/alioshr/task-orchestrator/compare/v1.1.3...v1.2.0) (2026-02-07)
 
 
