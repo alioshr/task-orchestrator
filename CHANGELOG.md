@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/alioshr/task-orchestrator/compare/v1.0.2...v1.0.3) (2026-02-07)
+
+
+### Bug Fixes
+
+* add shebang for npx/bunx compatibility ([63a474a](https://github.com/alioshr/task-orchestrator/commit/63a474adba015f69d1dcdd97446bf07fc7324eca))
+
 ## [1.0.2](https://github.com/alioshr/task-orchestrator/compare/v1.0.1...v1.0.2) (2026-02-07)
 
 
