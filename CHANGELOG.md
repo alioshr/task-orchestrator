@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/alioshr/task-orchestrator/compare/v1.1.1...v1.1.2) (2026-02-07)
+
+
+### Bug Fixes
+
+* auto-derive projectId from feature when creating tasks ([78b852d](https://github.com/alioshr/task-orchestrator/commit/78b852db3bb4068e6eef288bba4c825b90a0aaf0))
+
 ## [1.1.1](https://github.com/alioshr/task-orchestrator/compare/v1.1.0...v1.1.1) (2026-02-07)
 
 
