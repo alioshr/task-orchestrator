@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/alioshr/task-orchestrator/compare/v1.0.3...v1.1.0) (2026-02-07)
+
+
+### Features
+
+* add cascade delete for projects and features ([0bee85f](https://github.com/alioshr/task-orchestrator/commit/0bee85f2be0c9dd625a0cd37deeb15c60eb30bc2))
+
 ## [1.0.3](https://github.com/alioshr/task-orchestrator/compare/v1.0.2...v1.0.3) (2026-02-07)
 
 
