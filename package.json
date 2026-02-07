@@ -1,21 +1,51 @@
 {
-  "name": "task-orchestrator-bun",
+  "name": "@allpepper/task-orchestrator",
   "version": "0.1.0",
-  "module": "index.ts",
+  "description": "MCP server for hierarchical task orchestration with SQLite persistence",
   "type": "module",
-  "private": true,
+  "main": "src/index.ts",
+  "bin": {
+    "task-orchestrator": "src/server.ts"
+  },
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/__tests__"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alioshr/task-orchestrator.git"
+  },
+  "keywords": ["mcp", "task-orchestrator", "claude", "ai", "bun", "sqlite"],
+  "author": "alioshr",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/alioshr/task-orchestrator/issues"
+  },
+  "homepage": "https://github.com/alioshr/task-orchestrator#readme",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
   "scripts": {
     "start": "bun run src/server.ts",
-    "dev": "bun --watch run src/server.ts"
-  },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
+    "dev": "bun --watch run src/server.ts",
+    "test": "bun test",
+    "prepublishOnly": "bun test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.3",
     "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "semantic-release": "^24.0.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
   }
 }

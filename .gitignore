@@ -39,3 +39,7 @@ data/
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# SQLite WAL files
+*.db-shm
+*.db-wal
