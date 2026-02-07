@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/alioshr/task-orchestrator/compare/v1.1.2...v1.1.3) (2026-02-07)
+
+
+### Bug Fixes
+
+* accept both dashed and dashless UUIDs in tool input schemas ([370de12](https://github.com/alioshr/task-orchestrator/commit/370de12def1ad2d14227bc5636ef699c5c8c5304))
+
 ## [1.1.2](https://github.com/alioshr/task-orchestrator/compare/v1.1.1...v1.1.2) (2026-02-07)
 
 
