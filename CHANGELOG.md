@@ -1,3 +1,18 @@
+# [2.0.0](https://github.com/alioshr/task-orchestrator/compare/v1.2.1...v2.0.0) (2026-02-08)
+
+
+* feat!: v3 pipeline and blocking refactor ([fdb7e52](https://github.com/alioshr/task-orchestrator/commit/fdb7e52faf0d218478d7eebdd0a6877274288e37))
+
+
+### BREAKING CHANGES
+
+* v3 is a complete pipeline and dependency model rewrite.
+All legacy statuses are remapped. The dependencies table is dropped in
+favor of blocked_by/related_to JSON fields. manage_container no longer
+supports setStatus. Projects lose their status column.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
 # 3.0.0 (Breaking)
 
 ### Breaking Changes
