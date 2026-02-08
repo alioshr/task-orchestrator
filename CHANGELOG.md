@@ -1,3 +1,10 @@
+## [3.1.1](https://github.com/alioshr/task-orchestrator/compare/v3.1.0...v3.1.1) (2026-02-08)
+
+
+### Bug Fixes
+
+* cascade delete graph entities when deleting a project ([6927a9a](https://github.com/alioshr/task-orchestrator/commit/6927a9ac6dcc4d08f04583cb06406b925ec43865))
+
 # [3.1.0](https://github.com/alioshr/task-orchestrator/compare/v3.0.4...v3.1.0) (2026-02-08)
 
 
