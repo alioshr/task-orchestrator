@@ -32,5 +32,5 @@ export { registerBlockTool } from './block';
 export { registerUnblockTool } from './unblock';
 export { registerManageDependencyTool } from './manage-dependency';
 
-// Init tool
-export { registerInitTool } from './init';
+// Sync tool
+export { registerSyncTool } from './sync';

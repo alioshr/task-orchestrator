@@ -26,12 +26,12 @@ function dbHasRecords(): boolean {
   }
 }
 
-export function registerInitTool(server: McpServer): void {
+export function registerSyncTool(server: McpServer): void {
   server.tool(
-    'init',
-    'Initialize the task orchestrator: creates config file and database. If DB already has data, returns a warning unless confirmed: true is passed (backs up existing DB and creates fresh one).',
+    'sync',
+    'Sync the task orchestrator: creates config file and database if missing, applies pending migrations. If DB already has data, returns a warning unless override: true is passed (backs up existing DB and creates fresh one).',
     {
-      confirmed: z.boolean().optional().describe('Pass true to confirm re-initialization when data exists. Existing DB will be backed up.'),
+      override: z.boolean().optional().describe('Pass true to force re-initialization when data exists. Existing DB will be backed up.'),
     },
     async (params) => {
       try {
@@ -42,9 +42,9 @@ export function registerInitTool(server: McpServer): void {
         // Check if DB has existing records
         const hasData = dbHasRecords();
 
-        if (hasData && !params.confirmed) {
+        if (hasData && !params.override) {
           const response = createErrorResponse(
-            'Database already contains records. Call init again with confirmed: true to re-initialize. ' +
+            'Database already contains records. Call sync again with override: true to re-initialize. ' +
             'The existing database will be backed up. This operation is irreversible.',
           );
           return {
@@ -52,7 +52,7 @@ export function registerInitTool(server: McpServer): void {
           };
         }
 
-        if (hasData && params.confirmed) {
+        if (hasData && params.override) {
           // Backup existing DB
           const d = new Date();
           const pad = (n: number) => String(n).padStart(2, '0');
@@ -110,9 +110,9 @@ export function registerInitTool(server: McpServer): void {
         runMigrations();
 
         const message = configCreated
-          ? 'Initialized successfully. Config and database created. ' +
+          ? 'Synced successfully. Config and database created. ' +
             'Optional pipeline states (TO_BE_TESTED, READY_TO_PROD) can be added to config before creating any data.'
-          : 'Initialized successfully. Config already existed, database ensured.';
+          : 'Synced successfully. Config already existed, database ensured.';
 
         const response = createSuccessResponse(message, {
           homePath,

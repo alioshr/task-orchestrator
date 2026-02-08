@@ -42,7 +42,7 @@ const CONFIG_COMMENT = `# Task Orchestrator v3 Configuration
 #   task: [NEW, ACTIVE, TO_BE_TESTED, READY_TO_PROD, CLOSED]
 #
 # Once the database contains records, pipeline edits are ignored.
-# To reconfigure, run init with confirmed: true (backs up existing DB).
+# To reconfigure, run sync with override: true (backs up existing DB).
 `;
 
 const PIPELINE_CONFIG_TABLE = '_pipeline_config';
@@ -56,7 +56,6 @@ export function getHomePath(): string {
 }
 
 export function getDbPath(): string {
-  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
   return join(getHomePath(), 'tasks.db');
 }
 

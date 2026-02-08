@@ -3,10 +3,6 @@ import { mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 
 function resolveDbPath(): string {
-  // Explicit DATABASE_PATH override takes precedence
-  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
-
-  // Resolve from TASK_ORCHESTRATOR_HOME (default: ~/.task-orchestrator/)
   const home = process.env.TASK_ORCHESTRATOR_HOME || join(process.env.HOME || '~', '.task-orchestrator');
   return join(home, 'tasks.db');
 }

@@ -2,9 +2,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
-import { runMigrations } from './db/migrate';
-import { initConfig } from './config';
-import { runStartupChecks } from './config/startup-checks';
+import { bootstrap } from './bootstrap';
 import {
   registerQueryContainerTool,
   registerManageContainerTool,
@@ -28,13 +26,10 @@ import {
   registerBlockTool,
   registerUnblockTool,
   registerManageDependencyTool,
-  registerInitTool,
+  registerSyncTool,
 } from './tools';
 
-// Initialize config, database, and run startup checks
-runMigrations();
-initConfig();
-runStartupChecks();
+bootstrap();
 
 function registerAllTools(server: McpServer): void {
   // Container CRUD
@@ -71,8 +66,8 @@ function registerAllTools(server: McpServer): void {
   registerUnblockTool(server);
   registerManageDependencyTool(server);
 
-  // Init
-  registerInitTool(server);
+  // Sync
+  registerSyncTool(server);
 }
 
 // Create MCP server
