@@ -1,3 +1,10 @@
+## [3.0.4](https://github.com/alioshr/task-orchestrator/compare/v3.0.3...v3.0.4) (2026-02-08)
+
+
+### Bug Fixes
+
+* coerce z.number() params for MCP transport compatibility ([6a1e728](https://github.com/alioshr/task-orchestrator/commit/6a1e728ded1a8b2f4b3f829e41778d6352ee9e36))
+
 ## [3.0.3](https://github.com/alioshr/task-orchestrator/compare/v3.0.2...v3.0.3) (2026-02-08)
 
 
