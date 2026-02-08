@@ -1,3 +1,10 @@
+# [3.1.0](https://github.com/alioshr/task-orchestrator/compare/v3.0.4...v3.1.0) (2026-02-08)
+
+
+### Features
+
+* add knowledge graph subsystem for persistent codebase context ([5ade447](https://github.com/alioshr/task-orchestrator/commit/5ade4474e017ab75df739f9bd5127daef78630f2))
+
 ## [3.0.4](https://github.com/alioshr/task-orchestrator/compare/v3.0.3...v3.0.4) (2026-02-08)
 
 
