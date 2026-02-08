@@ -108,7 +108,7 @@ export function registerTerminateTool(server: McpServer): void {
     {
       containerType: dependencyContainerTypeSchema,
       id: uuidSchema,
-      version: z.number().int().describe('Current version for optimistic locking'),
+      version: z.coerce.number().int().describe('Current version for optimistic locking'),
       reason: z.string().optional().describe('Optional reason for termination'),
     },
     async (params) => {

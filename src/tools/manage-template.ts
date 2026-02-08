@@ -41,7 +41,7 @@ export function registerManageTemplateTool(server: McpServer): void {
       contentSample: z.string().optional(),
       contentFormat: z.string().optional(),
       isRequired: z.boolean().optional(),
-      ordinal: z.number().int().optional()
+      ordinal: z.coerce.number().int().optional()
     },
     async (params: any) => {
       try {

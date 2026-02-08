@@ -30,8 +30,8 @@ export function registerManageSectionsTool(server: McpServer): void {
       content: z.string().optional().describe('Section content (for add/update/updateText)'),
       contentFormat: z.enum(['PLAIN_TEXT', 'MARKDOWN', 'JSON', 'CODE']).optional().describe('Content format (for add/update)'),
       tags: z.string().optional().describe('Comma-separated tags (for add/update)'),
-      ordinal: z.number().int().optional().describe('Display order (for add)'),
-      version: z.number().int().optional().describe('Required for: update, updateText (for optimistic locking)'),
+      ordinal: z.coerce.number().int().optional().describe('Display order (for add)'),
+      version: z.coerce.number().int().optional().describe('Required for: update, updateText (for optimistic locking)'),
       orderedIds: z.string().optional().describe('Comma-separated section IDs in new order (for reorder)'),
       sections: z.string().optional().describe('JSON array of sections to create (for bulkCreate)'),
       sectionIds: z.string().optional().describe('Comma-separated section IDs to delete (for bulkDelete)')

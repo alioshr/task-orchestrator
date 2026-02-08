@@ -100,7 +100,7 @@ export function registerAdvanceTool(server: McpServer): void {
     {
       containerType: dependencyContainerTypeSchema,
       id: uuidSchema,
-      version: z.number().int().describe('Current version for optimistic locking'),
+      version: z.coerce.number().int().describe('Current version for optimistic locking'),
     },
     async (params) => {
       try {

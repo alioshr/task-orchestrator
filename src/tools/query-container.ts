@@ -49,8 +49,8 @@ export function registerQueryContainerTool(server: McpServer): void {
       tags: z.string().optional(),
       projectId: optionalUuidSchema,
       featureId: optionalUuidSchema,
-      limit: z.number().int().optional().default(20),
-      offset: z.number().int().optional().default(0),
+      limit: z.coerce.number().int().optional().default(20),
+      offset: z.coerce.number().int().optional().default(0),
       includeSections: z.boolean().optional().default(false),
     },
     async (params) => {

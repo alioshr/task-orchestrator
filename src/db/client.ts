@@ -2,6 +2,11 @@ import { Database } from 'bun:sqlite';
 import { mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 
+/**
+ * Derive the DB path from TASK_ORCHESTRATOR_HOME (same logic as config/index.ts getHomePath + getDbPath).
+ * We inline the logic here instead of importing from config to avoid a circular dependency
+ * (config/index.ts imports `db` from this module).
+ */
 function resolveDbPath(): string {
   const home = process.env.TASK_ORCHESTRATOR_HOME || join(process.env.HOME || '~', '.task-orchestrator');
   return join(home, 'tasks.db');

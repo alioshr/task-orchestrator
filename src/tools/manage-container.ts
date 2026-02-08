@@ -33,10 +33,10 @@ export function registerManageContainerTool(server: McpServer): void {
       priority: z.string().optional(),
       projectId: optionalUuidSchema,
       featureId: optionalUuidSchema,
-      complexity: z.number().int().optional(),
+      complexity: z.coerce.number().int().optional(),
       tags: z.string().optional(),
       relatedTo: z.string().optional().describe('Comma-separated list of related entity UUIDs (for update operation on features/tasks)'),
-      version: z.number().int().optional(),
+      version: z.coerce.number().int().optional(),
       cascade: z.boolean().optional().describe('For delete operation: if true, deletes all child entities recursively.'),
     },
     async (params) => {
