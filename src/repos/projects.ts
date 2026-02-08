@@ -1,15 +1,13 @@
 import { queryOne, queryAll, execute, generateId, now, buildSearchVector, loadTags, saveTags, deleteTags, ok, err, buildPaginationClause, countTasksByProject, countFeaturesByProject, type TaskCounts } from './base';
 import type { Project, Result } from '../domain/types';
-import { ProjectStatus, NotFoundError, ConflictError, ValidationError, EntityType } from '../domain/types';
+import { NotFoundError, ConflictError, ValidationError, EntityType } from '../domain/types';
 import { transaction } from '../db/client';
-import { isValidTransition, getAllowedTransitions, isTerminalStatus } from '../services/status-validator';
 
 interface ProjectRow {
   id: string;
   name: string;
   summary: string;
   description: string | null;
-  status: string;
   version: number;
   created_at: string;
   modified_at: string;
@@ -22,7 +20,6 @@ function rowToProject(row: ProjectRow, tags?: string[]): Project {
     name: row.name,
     summary: row.summary,
     description: row.description ?? undefined,
-    status: row.status as ProjectStatus,
     version: row.version,
     createdAt: new Date(row.created_at),
     modifiedAt: new Date(row.modified_at),
@@ -35,11 +32,9 @@ export function createProject(params: {
   name: string;
   summary: string;
   description?: string;
-  status?: ProjectStatus;
   tags?: string[];
 }): Result<Project> {
   try {
-    // Validate name not empty
     if (!params.name.trim()) {
       throw new ValidationError('Project name cannot be empty');
     }
@@ -50,16 +45,14 @@ export function createProject(params: {
     const result = transaction(() => {
       const id = generateId();
       const timestamp = now();
-      const status = params.status ?? ProjectStatus.PLANNING;
       const searchVector = buildSearchVector(params.name, params.summary, params.description);
 
       execute(
-        `INSERT INTO projects (id, name, summary, description, status, version, created_at, modified_at, search_vector)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, params.name, params.summary, params.description ?? null, status, 1, timestamp, timestamp, searchVector]
+        `INSERT INTO projects (id, name, summary, description, version, created_at, modified_at, search_vector)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, params.name, params.summary, params.description ?? null, 1, timestamp, timestamp, searchVector]
       );
 
-      // Save tags if provided
       if (params.tags && params.tags.length > 0) {
         saveTags(id, 'PROJECT', params.tags);
       }
@@ -71,7 +64,6 @@ export function createProject(params: {
         name: params.name,
         summary: params.summary,
         description: params.description ?? null,
-        status,
         version: 1,
         created_at: timestamp,
         modified_at: timestamp,
@@ -115,13 +107,11 @@ export function updateProject(
     name?: string;
     summary?: string;
     description?: string;
-    status?: ProjectStatus;
     tags?: string[];
     version: number;
   }
 ): Result<Project> {
   try {
-    // Validate inputs
     if (params.name !== undefined && !params.name.trim()) {
       throw new ValidationError('Project name cannot be empty');
     }
@@ -130,7 +120,6 @@ export function updateProject(
     }
 
     const result = transaction(() => {
-      // Get existing project
       const existing = queryOne<ProjectRow>(
         'SELECT * FROM projects WHERE id = ?',
         [id]
@@ -140,53 +129,26 @@ export function updateProject(
         throw new NotFoundError('Project', id);
       }
 
-      // Check version matches (optimistic locking)
       if (existing.version !== params.version) {
         throw new ConflictError(
           `Version mismatch: expected ${params.version}, got ${existing.version}`
         );
       }
 
-      // Validate status transition if status is being changed
-      if (params.status !== undefined && params.status !== existing.status) {
-        const currentStatus = existing.status;
-        const newStatus = params.status;
-
-        // Check if current status is terminal
-        if (isTerminalStatus('project', currentStatus)) {
-          throw new ValidationError(
-            `Cannot transition from terminal status '${currentStatus}'`
-          );
-        }
-
-        // Check if transition is valid
-        if (!isValidTransition('project', currentStatus, newStatus)) {
-          const allowed = getAllowedTransitions('project', currentStatus);
-          throw new ValidationError(
-            `Invalid status transition from '${currentStatus}' to '${newStatus}'. Allowed transitions: ${allowed.join(', ')}`
-          );
-        }
-      }
-
-      // Merge updated fields
       const name = params.name ?? existing.name;
       const summary = params.summary ?? existing.summary;
       const description = params.description !== undefined ? params.description : existing.description;
-      const status = params.status ?? existing.status;
       const newVersion = existing.version + 1;
       const modifiedAt = now();
-
-      // Rebuild search vector with updated fields
       const searchVector = buildSearchVector(name, summary, description ?? undefined);
 
       execute(
         `UPDATE projects
-         SET name = ?, summary = ?, description = ?, status = ?, version = ?, modified_at = ?, search_vector = ?
+         SET name = ?, summary = ?, description = ?, version = ?, modified_at = ?, search_vector = ?
          WHERE id = ?`,
-        [name, summary, description, status, newVersion, modifiedAt, searchVector, id]
+        [name, summary, description, newVersion, modifiedAt, searchVector, id]
       );
 
-      // Update tags if provided
       if (params.tags !== undefined) {
         saveTags(id, 'PROJECT', params.tags);
       }
@@ -198,7 +160,6 @@ export function updateProject(
         name,
         summary,
         description,
-        status,
         version: newVersion,
         created_at: existing.created_at,
         modified_at: modifiedAt,
@@ -225,7 +186,6 @@ export function deleteProject(id: string, options?: { cascade?: boolean }): Resu
   try {
     const cascade = options?.cascade ?? false;
 
-    // Check if project exists
     const existing = queryOne<ProjectRow>(
       'SELECT id FROM projects WHERE id = ?',
       [id]
@@ -235,12 +195,10 @@ export function deleteProject(id: string, options?: { cascade?: boolean }): Resu
       throw new NotFoundError('Project', id);
     }
 
-    // Count children
     const featureCount = countFeaturesByProject(id);
     const taskCounts = countTasksByProject(id);
     const taskCount = taskCounts.total;
 
-    // If children exist and no cascade, return error with counts
     if ((featureCount > 0 || taskCount > 0) && !cascade) {
       const parts: string[] = [];
       if (featureCount > 0) parts.push(`${featureCount} feature${featureCount > 1 ? 's' : ''}`);
@@ -253,51 +211,38 @@ export function deleteProject(id: string, options?: { cascade?: boolean }): Resu
 
     const result = transaction(() => {
       if (cascade) {
-        // Get all feature IDs for this project first (needed for task cleanup)
         const featureIds = queryAll<{ id: string }>(
           'SELECT id FROM features WHERE project_id = ?',
           [id]
         );
 
-        // Get all task IDs: tasks directly under project OR under features of this project
         const taskIds = queryAll<{ id: string }>(
           `SELECT id FROM tasks WHERE project_id = ?
            OR feature_id IN (SELECT id FROM features WHERE project_id = ?)`,
           [id, id]
         );
 
-        // Delete each task's dependencies, sections, and tags
         for (const task of taskIds) {
-          execute('DELETE FROM dependencies WHERE (from_entity_id = ? OR to_entity_id = ?) AND entity_type = ?', [task.id, task.id, 'task']);
           execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.TASK, task.id]);
           deleteTags(task.id, EntityType.TASK);
         }
 
-        // Delete all tasks: directly under project OR under features of this project
         execute(
           `DELETE FROM tasks WHERE project_id = ?
            OR feature_id IN (SELECT id FROM features WHERE project_id = ?)`,
           [id, id]
         );
 
-        // Delete each feature's dependencies, sections, and tags
         for (const feature of featureIds) {
-          execute('DELETE FROM dependencies WHERE (from_entity_id = ? OR to_entity_id = ?) AND entity_type = ?', [feature.id, feature.id, 'feature']);
           execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.FEATURE, feature.id]);
           deleteTags(feature.id, EntityType.FEATURE);
         }
 
-        // Delete all features for this project
         execute('DELETE FROM features WHERE project_id = ?', [id]);
       }
 
-      // Delete project sections
       execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.PROJECT, id]);
-
-      // Delete project tags
       deleteTags(id, EntityType.PROJECT);
-
-      // Delete project
       execute('DELETE FROM projects WHERE id = ?', [id]);
 
       return true;
@@ -314,7 +259,6 @@ export function deleteProject(id: string, options?: { cascade?: boolean }): Resu
 
 export function searchProjects(params: {
   query?: string;
-  status?: string;
   tags?: string;
   limit?: number;
   offset?: number;
@@ -323,33 +267,11 @@ export function searchProjects(params: {
     const whereClauses: string[] = [];
     const queryParams: any[] = [];
 
-    // Text search via search_vector LIKE
     if (params.query) {
       whereClauses.push('search_vector LIKE ?');
       queryParams.push(`%${params.query.toLowerCase()}%`);
     }
 
-    // Status filter (supports multi-value "PLANNING,IN_DEVELOPMENT" and negation "!COMPLETED")
-    if (params.status) {
-      if (params.status.startsWith('!')) {
-        // Negation
-        const excludedStatus = params.status.substring(1);
-        whereClauses.push('status != ?');
-        queryParams.push(excludedStatus);
-      } else if (params.status.includes(',')) {
-        // Multi-value
-        const statuses = params.status.split(',').map(s => s.trim());
-        const placeholders = statuses.map(() => '?').join(',');
-        whereClauses.push(`status IN (${placeholders})`);
-        queryParams.push(...statuses);
-      } else {
-        // Single value
-        whereClauses.push('status = ?');
-        queryParams.push(params.status);
-      }
-    }
-
-    // Tags filter via subquery on entity_tags
     if (params.tags) {
       const tags = params.tags.split(',').map(t => t.trim().toLowerCase());
       whereClauses.push(`
@@ -375,7 +297,6 @@ export function searchProjects(params: {
 
     const rows = queryAll<ProjectRow>(sql, queryParams);
 
-    // Load tags for each result
     const projects = rows.map(row => {
       const tags = loadTags(row.id, 'PROJECT');
       return rowToProject(row, tags);
@@ -389,13 +310,11 @@ export function searchProjects(params: {
 
 export function getProjectOverview(id: string): Result<{ project: Project; taskCounts: TaskCounts }> {
   try {
-    // Get project
     const projectResult = getProject(id);
     if (!projectResult.success) {
       throw new NotFoundError('Project', id);
     }
 
-    // Get task counts
     const taskCounts = countTasksByProject(id);
 
     return ok({

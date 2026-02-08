@@ -1,61 +1,45 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { createSuccessResponse, createErrorResponse, optionalUuidSchema } from './registry';
-import { getBlocked } from '../repos/dependencies';
-import { DependencyEntityType } from '../domain/types';
+import { queryAll } from '../repos/base';
 
-/**
- * Register the get_blocked_features MCP tool.
- *
- * Returns all blocked features, either with status 'BLOCKED' or features
- * that have incomplete blocking dependencies.
- */
 export function registerGetBlockedFeaturesTool(server: McpServer): void {
   server.tool(
     'get_blocked_features',
-    'Get all blocked features. Returns features that either have status BLOCKED or have incomplete blocking dependencies (features that block them but are not completed/archived). Results are sorted by priority (descending) then creation time (ascending).',
+    'Get all blocked features. Returns features that have a non-empty blocked_by field. Results are sorted by priority (descending) then creation time (ascending).',
     {
-      projectId: optionalUuidSchema.describe('Filter by project ID')
+      projectId: optionalUuidSchema.describe('Filter by project ID'),
     },
     async (params: any) => {
       try {
-        const result = getBlocked({
-          entityType: DependencyEntityType.FEATURE,
-          projectId: params.projectId
-        });
+        const conditions: string[] = ["blocked_by != '[]'"];
+        const values: any[] = [];
 
-        if (!result.success) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify(createErrorResponse(result.error, result.code), null, 2)
-            }]
-          };
+        if (params.projectId) {
+          conditions.push('project_id = ?');
+          values.push(params.projectId);
         }
+
+        const sql = `SELECT * FROM features
+          WHERE ${conditions.join(' AND ')}
+          ORDER BY
+            CASE priority WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 3 END ASC,
+            created_at ASC`;
+
+        const rows = queryAll<any>(sql, values);
 
         return {
           content: [{
             type: 'text' as const,
-            text: JSON.stringify(
-              createSuccessResponse(
-                `Found ${result.data.length} blocked feature(s)`,
-                result.data
-              ),
-              null,
-              2
-            )
-          }]
+            text: JSON.stringify(createSuccessResponse(`Found ${rows.length} blocked feature(s)`, rows), null, 2),
+          }],
         };
       } catch (error: any) {
         return {
           content: [{
             type: 'text' as const,
-            text: JSON.stringify(
-              createErrorResponse('Failed to get blocked features', error.message),
-              null,
-              2
-            )
-          }]
+            text: JSON.stringify(createErrorResponse('Failed to get blocked features', error.message), null, 2),
+          }],
         };
       }
     }

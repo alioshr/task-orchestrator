@@ -15,9 +15,8 @@ import {
   type TaskCounts
 } from './base';
 import { transaction } from '../db/client';
-import type { Result, Feature, FeatureStatus, Priority } from '../domain/types';
+import type { Result, Feature, Priority } from '../domain/types';
 import { NotFoundError, ValidationError, ConflictError, EntityType } from '../domain/types';
-import { isValidTransition, getAllowedTransitions, isTerminalStatus } from '../services/status-validator';
 
 // ============================================================================
 // Database Row Types
@@ -31,10 +30,27 @@ interface FeatureRow {
   description: string | null;
   status: string;
   priority: string;
+  blocked_by: string;
+  blocked_reason: string | null;
+  related_to: string;
   version: number;
   created_at: string;
   modified_at: string;
   search_vector: string | null;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function parseJsonArray(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 // ============================================================================
@@ -48,8 +64,11 @@ function rowToFeature(row: FeatureRow, tags?: string[]): Feature {
     name: row.name,
     summary: row.summary,
     description: row.description ?? undefined,
-    status: row.status as FeatureStatus,
+    status: row.status,
     priority: row.priority as Priority,
+    blockedBy: parseJsonArray(row.blocked_by),
+    blockedReason: row.blocked_reason ?? undefined,
+    relatedTo: parseJsonArray(row.related_to),
     version: row.version,
     createdAt: new Date(row.created_at),
     modifiedAt: new Date(row.modified_at),
@@ -65,8 +84,6 @@ function rowToFeature(row: FeatureRow, tags?: string[]): Feature {
 function validateFeatureParams(params: {
   name?: string;
   summary?: string;
-  status?: FeatureStatus;
-  priority?: Priority;
 }): void {
   if (params.name !== undefined && params.name.trim().length === 0) {
     throw new ValidationError('Feature name cannot be empty');
@@ -80,15 +97,12 @@ function validateFeatureParams(params: {
 // Repository Functions
 // ============================================================================
 
-/**
- * Create a new feature
- */
 export function createFeature(params: {
   projectId?: string;
   name: string;
   summary: string;
   description?: string;
-  status?: FeatureStatus;
+  status?: string;
   priority: Priority;
   tags?: string[];
 }): Result<Feature> {
@@ -96,11 +110,8 @@ export function createFeature(params: {
     validateFeatureParams({
       name: params.name,
       summary: params.summary,
-      status: params.status,
-      priority: params.priority
     });
 
-    // Validate project exists if provided
     if (params.projectId) {
       const projectExists = queryOne<{ id: string }>(
         'SELECT id FROM projects WHERE id = ?',
@@ -114,14 +125,15 @@ export function createFeature(params: {
     const feature = transaction(() => {
       const id = generateId();
       const timestamp = now();
-      const status = params.status ?? 'DRAFT';
+      const status = params.status ?? 'NEW';
       const searchVector = buildSearchVector(params.name, params.summary, params.description);
 
       execute(
         `INSERT INTO features (
           id, project_id, name, summary, description, status, priority,
+          blocked_by, blocked_reason, related_to,
           version, created_at, modified_at, search_vector
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           params.projectId ?? null,
@@ -130,6 +142,9 @@ export function createFeature(params: {
           params.description ?? null,
           status,
           params.priority,
+          '[]', // blocked_by
+          null, // blocked_reason
+          '[]', // related_to
           1,
           timestamp,
           timestamp,
@@ -137,7 +152,6 @@ export function createFeature(params: {
         ]
       );
 
-      // Save tags if provided
       if (params.tags && params.tags.length > 0) {
         saveTags(id, EntityType.FEATURE, params.tags);
       }
@@ -160,9 +174,6 @@ export function createFeature(params: {
   }
 }
 
-/**
- * Get a feature by ID
- */
 export function getFeature(id: string): Result<Feature> {
   try {
     const row = queryOne<FeatureRow>('SELECT * FROM features WHERE id = ?', [id]);
@@ -183,19 +194,16 @@ export function getFeature(id: string): Result<Feature> {
   }
 }
 
-/**
- * Update a feature (with optimistic locking)
- */
 export function updateFeature(
   id: string,
   params: {
     name?: string;
     summary?: string;
     description?: string;
-    status?: FeatureStatus;
     priority?: Priority;
     projectId?: string;
     tags?: string[];
+    relatedTo?: string[];
     version: number;
   }
 ): Result<Feature> {
@@ -203,11 +211,8 @@ export function updateFeature(
     validateFeatureParams({
       name: params.name,
       summary: params.summary,
-      status: params.status,
-      priority: params.priority
     });
 
-    // Validate project exists if provided
     if (params.projectId !== undefined) {
       if (params.projectId !== null) {
         const projectExists = queryOne<{ id: string }>(
@@ -221,7 +226,6 @@ export function updateFeature(
     }
 
     const feature = transaction(() => {
-      // Check if feature exists and version matches
       const current = queryOne<FeatureRow>('SELECT * FROM features WHERE id = ?', [id]);
 
       if (!current) {
@@ -234,27 +238,6 @@ export function updateFeature(
         );
       }
 
-      // Validate status transition if status is being updated
-      if (params.status !== undefined && params.status !== current.status) {
-        const currentStatus = current.status;
-
-        // Check if current status is terminal
-        if (isTerminalStatus('feature', currentStatus)) {
-          throw new ValidationError(
-            `Cannot transition from terminal status '${currentStatus}'`
-          );
-        }
-
-        // Check if the transition is valid
-        if (!isValidTransition('feature', currentStatus, params.status)) {
-          const allowed = getAllowedTransitions('feature', currentStatus);
-          throw new ValidationError(
-            `Invalid status transition from '${currentStatus}' to '${params.status}'. Allowed transitions: ${allowed.join(', ')}`
-          );
-        }
-      }
-
-      // Build update query dynamically based on provided params
       const updates: string[] = [];
       const values: any[] = [];
 
@@ -270,10 +253,6 @@ export function updateFeature(
         updates.push('description = ?');
         values.push(params.description);
       }
-      if (params.status !== undefined) {
-        updates.push('status = ?');
-        values.push(params.status);
-      }
       if (params.priority !== undefined) {
         updates.push('priority = ?');
         values.push(params.priority);
@@ -281,6 +260,10 @@ export function updateFeature(
       if (params.projectId !== undefined) {
         updates.push('project_id = ?');
         values.push(params.projectId);
+      }
+      if (params.relatedTo !== undefined) {
+        updates.push('related_to = ?');
+        values.push(JSON.stringify(params.relatedTo));
       }
 
       // Update search vector if any text field changed
@@ -294,7 +277,6 @@ export function updateFeature(
         values.push(searchVector);
       }
 
-      // Always update version and modified_at
       updates.push('version = ?');
       values.push(params.version + 1);
 
@@ -302,7 +284,6 @@ export function updateFeature(
       updates.push('modified_at = ?');
       values.push(timestamp);
 
-      // Add WHERE clause params
       values.push(id);
       values.push(params.version);
 
@@ -311,7 +292,6 @@ export function updateFeature(
         values
       );
 
-      // Update tags if provided
       if (params.tags !== undefined) {
         saveTags(id, EntityType.FEATURE, params.tags);
       }
@@ -340,25 +320,19 @@ export function updateFeature(
   }
 }
 
-/**
- * Delete a feature
- */
 export function deleteFeature(id: string, options?: { cascade?: boolean }): Result<boolean> {
   try {
     const cascade = options?.cascade ?? false;
 
-    // Check if feature exists
     const exists = queryOne<{ id: string }>('SELECT id FROM features WHERE id = ?', [id]);
 
     if (!exists) {
       throw new NotFoundError('Feature', id);
     }
 
-    // Count children
     const taskCounts = countTasksByFeature(id);
     const taskCount = taskCounts.total;
 
-    // If children exist and no cascade, return error with counts
     if (taskCount > 0 && !cascade) {
       return err(
         `Cannot delete feature: contains ${taskCount} task${taskCount > 1 ? 's' : ''}. Use cascade: true to delete all.`,
@@ -368,33 +342,21 @@ export function deleteFeature(id: string, options?: { cascade?: boolean }): Resu
 
     const result = transaction(() => {
       if (cascade) {
-        // Get all task IDs for this feature
         const taskIds = queryAll<{ id: string }>(
           'SELECT id FROM tasks WHERE feature_id = ?',
           [id]
         );
 
-        // Delete each task's dependencies, sections, and tags
         for (const task of taskIds) {
-          execute('DELETE FROM dependencies WHERE (from_entity_id = ? OR to_entity_id = ?) AND entity_type = ?', [task.id, task.id, 'task']);
           execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.TASK, task.id]);
           deleteTags(task.id, EntityType.TASK);
         }
 
-        // Delete all tasks for this feature
         execute('DELETE FROM tasks WHERE feature_id = ?', [id]);
       }
 
-      // Delete feature-level dependencies
-      execute('DELETE FROM dependencies WHERE (from_entity_id = ? OR to_entity_id = ?) AND entity_type = ?', [id, id, 'feature']);
-
-      // Delete feature sections
       execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.FEATURE, id]);
-
-      // Delete associated tags
       deleteTags(id, EntityType.FEATURE);
-
-      // Delete the feature
       const changes = execute('DELETE FROM features WHERE id = ?', [id]);
 
       return changes > 0;
@@ -409,9 +371,6 @@ export function deleteFeature(id: string, options?: { cascade?: boolean }): Resu
   }
 }
 
-/**
- * Search features with flexible filtering
- */
 export function searchFeatures(params: {
   query?: string;
   status?: string;
@@ -425,13 +384,11 @@ export function searchFeatures(params: {
     const conditions: string[] = [];
     const values: any[] = [];
 
-    // Text search via search_vector
     if (params.query) {
       conditions.push('search_vector LIKE ?');
       values.push(`%${params.query.toLowerCase()}%`);
     }
 
-    // Status filter (supports multi-value and negation)
     if (params.status) {
       const statusFilters = params.status.split(',').map(s => s.trim());
       const negations: string[] = [];
@@ -456,7 +413,6 @@ export function searchFeatures(params: {
       }
     }
 
-    // Priority filter (supports multi-value and negation)
     if (params.priority) {
       const priorityFilters = params.priority.split(',').map(p => p.trim());
       const negations: string[] = [];
@@ -481,13 +437,11 @@ export function searchFeatures(params: {
       }
     }
 
-    // Project filter
     if (params.projectId) {
       conditions.push('project_id = ?');
       values.push(params.projectId);
     }
 
-    // Tags filter
     if (params.tags) {
       const tagList = params.tags.split(',').map(t => t.trim().toLowerCase());
       conditions.push(`id IN (
@@ -497,7 +451,6 @@ export function searchFeatures(params: {
       values.push(EntityType.FEATURE, ...tagList);
     }
 
-    // Build query
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const paginationClause = buildPaginationClause({
       limit: params.limit,
@@ -507,7 +460,6 @@ export function searchFeatures(params: {
     const sql = `SELECT * FROM features ${whereClause} ORDER BY created_at DESC${paginationClause}`;
     const rows = queryAll<FeatureRow>(sql, values);
 
-    // Load tags for each feature
     const features = rows.map(row => {
       const tags = loadTags(row.id, EntityType.FEATURE);
       return rowToFeature(row, tags);
@@ -519,9 +471,6 @@ export function searchFeatures(params: {
   }
 }
 
-/**
- * Get feature with task counts
- */
 export function getFeatureOverview(id: string): Result<{
   feature: Feature;
   taskCounts: TaskCounts;

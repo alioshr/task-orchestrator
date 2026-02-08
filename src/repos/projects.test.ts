@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterAll } from 'bun:test';
 import { db } from '../db/client';
-import { ProjectStatus, Priority } from '../domain/types';
+import { Priority } from '../domain/types';
 import {
   createProject,
   getProject,
@@ -12,25 +12,21 @@ import {
 import { createFeature, getFeature } from './features';
 import { createTask, getTask } from './tasks';
 
-// Setup test database
-beforeEach(() => {
-  // Clean up tables before each test
-  db.run('DELETE FROM dependencies');
+// Clean all relevant tables in correct FK order
+function cleanTables() {
   db.run('DELETE FROM sections');
   db.run('DELETE FROM entity_tags');
   db.run('DELETE FROM tasks');
   db.run('DELETE FROM features');
   db.run('DELETE FROM projects');
+}
+
+beforeEach(() => {
+  cleanTables();
 });
 
 afterAll(() => {
-  // Final cleanup
-  db.run('DELETE FROM dependencies');
-  db.run('DELETE FROM sections');
-  db.run('DELETE FROM entity_tags');
-  db.run('DELETE FROM tasks');
-  db.run('DELETE FROM features');
-  db.run('DELETE FROM projects');
+  cleanTables();
 });
 
 describe('createProject', () => {
@@ -45,7 +41,6 @@ describe('createProject', () => {
       expect(result.data.id).toBeDefined();
       expect(result.data.name).toBe('Test Project');
       expect(result.data.summary).toBe('A test project summary');
-      expect(result.data.status).toBe(ProjectStatus.PLANNING);
       expect(result.data.version).toBe(1);
       expect(result.data.createdAt).toBeInstanceOf(Date);
       expect(result.data.modifiedAt).toBeInstanceOf(Date);
@@ -57,15 +52,12 @@ describe('createProject', () => {
       name: 'Full Project',
       summary: 'A complete project',
       description: 'Detailed description here',
-      status: ProjectStatus.IN_DEVELOPMENT,
       tags: ['backend', 'api']
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.description).toBe('Detailed description here');
-      expect(result.data.status).toBe(ProjectStatus.IN_DEVELOPMENT);
-      // Tags can be in any order since they're stored in a set-like structure
       expect(result.data.tags).toContain('backend');
       expect(result.data.tags).toContain('api');
       expect(result.data.tags?.length).toBe(2);
@@ -107,7 +99,6 @@ describe('createProject', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      // Tags should be normalized to lowercase and deduplicated
       expect(result.data.tags).toBeDefined();
       expect(result.data.tags?.length).toBe(2);
       expect(result.data.tags).toContain('backend');
@@ -245,27 +236,6 @@ describe('updateProject', () => {
     }
   });
 
-  it('should update project status', () => {
-    const created = createProject({
-      name: 'Test Project',
-      summary: 'Test summary'
-    });
-
-    expect(created.success).toBe(true);
-    if (!created.success) return;
-
-    const result = updateProject(created.data.id, {
-      status: ProjectStatus.IN_DEVELOPMENT,
-      version: 1
-    });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.status).toBe(ProjectStatus.IN_DEVELOPMENT);
-      expect(result.data.version).toBe(2);
-    }
-  });
-
   it('should update project tags', () => {
     const created = createProject({
       name: 'Test Project',
@@ -300,7 +270,7 @@ describe('updateProject', () => {
 
     const result = updateProject(created.data.id, {
       name: 'Updated Name',
-      version: 999 // Wrong version
+      version: 999
     });
 
     expect(result.success).toBe(false);
@@ -380,8 +350,6 @@ describe('updateProject', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      // On fast systems, the update can happen in the same millisecond
-      // Check that the timestamp is at least the same or newer
       expect(result.data.modifiedAt.getTime()).toBeGreaterThanOrEqual(originalModifiedAt.getTime());
     }
   });
@@ -628,7 +596,6 @@ describe('deleteProject', () => {
     // Create task with only feature_id - projectId should be auto-derived
     const task = createTask({
       featureId: feature.data.id,
-      // NOTE: not setting projectId explicitly - should be derived from feature
       title: 'Task under Feature Only',
       summary: 'Only has feature_id explicitly set',
       priority: Priority.MEDIUM,
@@ -683,46 +650,6 @@ describe('searchProjects', () => {
     }
   });
 
-  it('should filter by status', () => {
-    createProject({ name: 'Planning Project', summary: 'Summary', status: ProjectStatus.PLANNING });
-    createProject({ name: 'Dev Project', summary: 'Summary', status: ProjectStatus.IN_DEVELOPMENT });
-
-    const result = searchProjects({ status: ProjectStatus.IN_DEVELOPMENT });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.length).toBe(1);
-      expect(result.data[0]!.status).toBe(ProjectStatus.IN_DEVELOPMENT);
-    }
-  });
-
-  it('should filter by multiple statuses', () => {
-    createProject({ name: 'Planning', summary: 'Summary', status: ProjectStatus.PLANNING });
-    createProject({ name: 'In Dev', summary: 'Summary', status: ProjectStatus.IN_DEVELOPMENT });
-    createProject({ name: 'Completed', summary: 'Summary', status: ProjectStatus.COMPLETED });
-
-    const result = searchProjects({ status: 'PLANNING,IN_DEVELOPMENT' });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.length).toBe(2);
-    }
-  });
-
-  it('should filter by negated status', () => {
-    createProject({ name: 'Active 1', summary: 'Summary', status: ProjectStatus.PLANNING });
-    createProject({ name: 'Active 2', summary: 'Summary', status: ProjectStatus.IN_DEVELOPMENT });
-    createProject({ name: 'Done', summary: 'Summary', status: ProjectStatus.COMPLETED });
-
-    const result = searchProjects({ status: '!COMPLETED' });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.length).toBe(2);
-      expect(result.data.every(p => p.status !== ProjectStatus.COMPLETED)).toBe(true);
-    }
-  });
-
   it('should filter by tags', () => {
     createProject({ name: 'Backend Project', summary: 'Summary', tags: ['backend', 'api'] });
     createProject({ name: 'Frontend Project', summary: 'Summary', tags: ['frontend', 'ui'] });
@@ -736,20 +663,20 @@ describe('searchProjects', () => {
     }
   });
 
-  it('should combine text query and status filter', () => {
-    createProject({ name: 'Unique Active', summary: 'Summary', status: ProjectStatus.IN_DEVELOPMENT });
-    createProject({ name: 'Unique Done', summary: 'Summary', status: ProjectStatus.COMPLETED });
-    createProject({ name: 'Other Active', summary: 'Summary', status: ProjectStatus.IN_DEVELOPMENT });
+  it('should combine text query and tags filter', () => {
+    createProject({ name: 'Unique Backend', summary: 'Summary', tags: ['backend'] });
+    createProject({ name: 'Unique Frontend', summary: 'Summary', tags: ['frontend'] });
+    createProject({ name: 'Other Backend', summary: 'Summary', tags: ['backend'] });
 
     const result = searchProjects({
       query: 'unique',
-      status: ProjectStatus.IN_DEVELOPMENT
+      tags: 'backend'
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.length).toBe(1);
-      expect(result.data[0]!.name).toBe('Unique Active');
+      expect(result.data[0]!.name).toBe('Unique Backend');
     }
   });
 
@@ -822,6 +749,49 @@ describe('getProjectOverview', () => {
       expect(result.data.project.id).toBe(created.data.id);
       expect(result.data.taskCounts.total).toBe(0);
       expect(result.data.taskCounts.byStatus).toEqual({});
+    }
+  });
+
+  it('should return task counts grouped by status', () => {
+    const project = createProject({
+      name: 'Overview Project',
+      summary: 'Has tasks'
+    });
+    expect(project.success).toBe(true);
+    if (!project.success) return;
+
+    const feature = createFeature({
+      projectId: project.data.id,
+      name: 'Feature',
+      summary: 'Has tasks',
+      priority: Priority.HIGH
+    });
+    expect(feature.success).toBe(true);
+    if (!feature.success) return;
+
+    // Create tasks with different statuses (default is NEW)
+    createTask({
+      featureId: feature.data.id,
+      title: 'Task 1',
+      summary: 'New task',
+      priority: Priority.HIGH,
+      complexity: 3
+    });
+    createTask({
+      featureId: feature.data.id,
+      title: 'Task 2',
+      summary: 'Another new task',
+      priority: Priority.MEDIUM,
+      complexity: 2
+    });
+
+    const result = getProjectOverview(project.data.id);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.project.id).toBe(project.data.id);
+      expect(result.data.taskCounts.total).toBe(2);
+      expect(result.data.taskCounts.byStatus['NEW']).toBe(2);
     }
   });
 

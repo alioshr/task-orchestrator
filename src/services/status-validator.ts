@@ -1,102 +1,65 @@
-import { ProjectStatus, FeatureStatus, TaskStatus } from '../domain/types';
-
-type TransitionMap = Record<string, string[]>;
-
-// Valid statuses per container type
-const PROJECT_STATUSES = Object.values(ProjectStatus);
-const FEATURE_STATUSES = Object.values(FeatureStatus);
-const TASK_STATUSES = Object.values(TaskStatus);
-
 /**
- * Status transition maps
+ * Config-driven status validator for Task Orchestrator v3.
  *
- * Note: CANCELLED and DEFERRED are intentionally non-terminal statuses.
- * They allow transitions back to earlier workflow stages (BACKLOG/PENDING for tasks,
- * PLANNING for projects) to support reinstating cancelled or deferred work.
+ * Pipeline transitions are linear: advance goes forward one step,
+ * revert goes backward one step. Terminal states (CLOSED, WILL_NOT_IMPLEMENT)
+ * allow no transitions out.
+ *
+ * Projects are stateless — no validation needed.
  */
-export const PROJECT_TRANSITIONS: Record<ProjectStatus, ProjectStatus[]> = {
-  [ProjectStatus.PLANNING]: [ProjectStatus.IN_DEVELOPMENT, ProjectStatus.ON_HOLD, ProjectStatus.CANCELLED],
-  [ProjectStatus.IN_DEVELOPMENT]: [ProjectStatus.COMPLETED, ProjectStatus.ON_HOLD, ProjectStatus.CANCELLED],
-  [ProjectStatus.ON_HOLD]: [ProjectStatus.PLANNING, ProjectStatus.IN_DEVELOPMENT, ProjectStatus.CANCELLED],
-  [ProjectStatus.COMPLETED]: [ProjectStatus.ARCHIVED],
-  [ProjectStatus.CANCELLED]: [ProjectStatus.PLANNING], // Non-terminal: allows reinstating cancelled projects
-  [ProjectStatus.ARCHIVED]: [],
-};
 
-export const FEATURE_TRANSITIONS: Record<FeatureStatus, FeatureStatus[]> = {
-  [FeatureStatus.DRAFT]: [FeatureStatus.PLANNING],
-  [FeatureStatus.PLANNING]: [FeatureStatus.IN_DEVELOPMENT, FeatureStatus.ON_HOLD],
-  [FeatureStatus.IN_DEVELOPMENT]: [FeatureStatus.TESTING, FeatureStatus.BLOCKED, FeatureStatus.ON_HOLD],
-  [FeatureStatus.TESTING]: [FeatureStatus.VALIDATING, FeatureStatus.IN_DEVELOPMENT],
-  [FeatureStatus.VALIDATING]: [FeatureStatus.PENDING_REVIEW, FeatureStatus.IN_DEVELOPMENT],
-  [FeatureStatus.PENDING_REVIEW]: [FeatureStatus.DEPLOYED, FeatureStatus.IN_DEVELOPMENT],
-  [FeatureStatus.BLOCKED]: [FeatureStatus.IN_DEVELOPMENT, FeatureStatus.ON_HOLD],
-  [FeatureStatus.ON_HOLD]: [FeatureStatus.PLANNING, FeatureStatus.IN_DEVELOPMENT],
-  [FeatureStatus.DEPLOYED]: [FeatureStatus.COMPLETED],
-  [FeatureStatus.COMPLETED]: [FeatureStatus.ARCHIVED],
-  [FeatureStatus.ARCHIVED]: [],
-};
-
-export const TASK_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  [TaskStatus.BACKLOG]: [TaskStatus.PENDING],
-  [TaskStatus.PENDING]: [TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED, TaskStatus.ON_HOLD, TaskStatus.CANCELLED, TaskStatus.DEFERRED],
-  [TaskStatus.IN_PROGRESS]: [TaskStatus.IN_REVIEW, TaskStatus.TESTING, TaskStatus.BLOCKED, TaskStatus.ON_HOLD, TaskStatus.COMPLETED],
-  [TaskStatus.IN_REVIEW]: [TaskStatus.CHANGES_REQUESTED, TaskStatus.COMPLETED],
-  [TaskStatus.CHANGES_REQUESTED]: [TaskStatus.IN_PROGRESS],
-  [TaskStatus.TESTING]: [TaskStatus.READY_FOR_QA, TaskStatus.IN_PROGRESS],
-  [TaskStatus.READY_FOR_QA]: [TaskStatus.INVESTIGATING, TaskStatus.DEPLOYED, TaskStatus.COMPLETED],
-  [TaskStatus.INVESTIGATING]: [TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED],
-  [TaskStatus.BLOCKED]: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
-  [TaskStatus.ON_HOLD]: [TaskStatus.PENDING, TaskStatus.IN_PROGRESS],
-  [TaskStatus.DEPLOYED]: [TaskStatus.COMPLETED],
-  [TaskStatus.COMPLETED]: [], // Terminal: no transitions allowed
-  [TaskStatus.CANCELLED]: [TaskStatus.BACKLOG, TaskStatus.PENDING], // Non-terminal: allows reinstating cancelled tasks
-  [TaskStatus.DEFERRED]: [TaskStatus.BACKLOG, TaskStatus.PENDING], // Non-terminal: allows resuming deferred tasks
-};
-
-// Terminal statuses (no transitions out)
-const TERMINAL_STATUSES: Record<string, string[]> = {
-  project: ['ARCHIVED'],
-  feature: ['ARCHIVED'],
-  task: ['COMPLETED'],
-};
+import { getNextState, getPrevState, isTerminal as configIsTerminal, isValidState, getPipeline, EXIT_STATE } from '../config';
 
 export type ContainerType = 'project' | 'feature' | 'task';
 
-export function isValidStatus(containerType: ContainerType, status: string): boolean {
-  switch (containerType) {
-    case 'project': return PROJECT_STATUSES.includes(status as ProjectStatus);
-    case 'feature': return FEATURE_STATUSES.includes(status as FeatureStatus);
-    case 'task': return TASK_STATUSES.includes(status as TaskStatus);
-  }
+/**
+ * Check whether a status is terminal (no transitions out).
+ * For projects, always returns false (stateless).
+ */
+export function isTerminalStatus(containerType: ContainerType, status: string): boolean {
+  if (containerType === 'project') return false;
+  return configIsTerminal(containerType, status);
 }
 
-export function getValidStatuses(containerType: ContainerType): string[] {
-  switch (containerType) {
-    case 'project': return [...PROJECT_STATUSES];
-    case 'feature': return [...FEATURE_STATUSES];
-    case 'task': return [...TASK_STATUSES];
-  }
-}
-
-export function getTransitions(containerType: ContainerType): TransitionMap {
-  switch (containerType) {
-    case 'project': return PROJECT_TRANSITIONS;
-    case 'feature': return FEATURE_TRANSITIONS;
-    case 'task': return TASK_TRANSITIONS;
-  }
-}
-
+/**
+ * Get allowed transitions from a given status.
+ * In v3, this is at most: [nextState] for advance, [prevState] for revert,
+ * plus WILL_NOT_IMPLEMENT (terminate) from any non-terminal state.
+ * Projects return empty array.
+ */
 export function getAllowedTransitions(containerType: ContainerType, currentStatus: string): string[] {
-  const transitions = getTransitions(containerType);
-  return transitions[currentStatus] || [];
+  if (containerType === 'project') return [];
+  if (!isValidState(containerType, currentStatus)) return [];
+  if (isTerminalStatus(containerType, currentStatus)) return [];
+
+  const transitions: string[] = [];
+
+  const next = getNextState(containerType, currentStatus);
+  if (next) transitions.push(next);
+
+  const prev = getPrevState(containerType, currentStatus);
+  if (prev) transitions.push(prev);
+
+  transitions.push(EXIT_STATE);
+
+  return transitions;
 }
 
+/**
+ * Check if a specific transition is valid.
+ * Projects always return false (no status transitions).
+ */
 export function isValidTransition(containerType: ContainerType, from: string, to: string): boolean {
+  if (containerType === 'project') return false;
   const allowed = getAllowedTransitions(containerType, from);
   return allowed.includes(to);
 }
 
-export function isTerminalStatus(containerType: ContainerType, status: string): boolean {
-  return TERMINAL_STATUSES[containerType]?.includes(status) ?? false;
+/**
+ * Check if a status string is recognized for the given entity type.
+ * Projects always return true (no status).
+ */
+export function isStatusValid(containerType: ContainerType, status: string): boolean {
+  if (containerType === 'project') return true;
+  return isValidState(containerType, status);
 }

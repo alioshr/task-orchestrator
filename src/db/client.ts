@@ -1,19 +1,41 @@
 import { Database } from 'bun:sqlite';
 import { mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
 
-const DB_PATH = process.env.DATABASE_PATH || 'data/tasks.db';
+function resolveDbPath(): string {
+  // Explicit DATABASE_PATH override takes precedence
+  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
 
-// Ensure directory exists
-mkdirSync(dirname(DB_PATH), { recursive: true });
+  // Resolve from TASK_ORCHESTRATOR_HOME (default: ~/.task-orchestrator/)
+  const home = process.env.TASK_ORCHESTRATOR_HOME || join(process.env.HOME || '~', '.task-orchestrator');
+  return join(home, 'tasks.db');
+}
 
-export const db = new Database(DB_PATH);
+const DB_PATH = resolveDbPath();
 
-// Set pragmas for performance and correctness
-db.run('PRAGMA journal_mode = WAL');
-db.run('PRAGMA busy_timeout = 5000');
-db.run('PRAGMA foreign_keys = ON');
-db.run('PRAGMA synchronous = NORMAL');
+function applyPragmas(connection: Database): void {
+  connection.run('PRAGMA journal_mode = WAL');
+  connection.run('PRAGMA busy_timeout = 5000');
+  connection.run('PRAGMA foreign_keys = ON');
+  connection.run('PRAGMA synchronous = NORMAL');
+}
+
+function openDatabase(): Database {
+  mkdirSync(dirname(DB_PATH), { recursive: true });
+  const connection = new Database(DB_PATH);
+  applyPragmas(connection);
+  return connection;
+}
+
+export let db = openDatabase();
+
+export function closeDbConnection(): void {
+  db.close();
+}
+
+export function reopenDbConnection(): void {
+  db = openDatabase();
+}
 
 // Transaction helper
 export function transaction<T>(fn: () => T): T {

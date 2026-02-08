@@ -11,22 +11,26 @@ export { registerQueryTemplatesTool } from './query-templates';
 export { registerManageTemplateTool } from './manage-template';
 export { registerApplyTemplateTool } from './apply-template';
 
-// Dependency tools
-export { registerQueryDependenciesTool } from './query-dependencies';
-export { registerManageDependencyTool } from './manage-dependency';
-
 // Tag tools
 export { registerListTagsTool } from './list-tags';
 export { registerGetTagUsageTool } from './get-tag-usage';
 export { registerRenameTagTool } from './rename-tag';
 
-// Workflow tools
+// Workflow query tools
 export { registerGetNextTaskTool } from './get-next-task';
 export { registerGetBlockedTasksTool } from './get-blocked-tasks';
 export { registerGetNextFeatureTool } from './get-next-feature';
 export { registerGetBlockedFeaturesTool } from './get-blocked-features';
-export { registerGetNextStatusTool } from './get-next-status';
 export { registerQueryWorkflowStateTool } from './query-workflow-state';
+export { registerQueryDependenciesTool } from './query-dependencies';
 
-// Setup tool
-export { registerSetupProjectTool } from './setup-project';
+// Pipeline tools (v3)
+export { registerAdvanceTool } from './advance';
+export { registerRevertTool } from './revert';
+export { registerTerminateTool } from './terminate';
+export { registerBlockTool } from './block';
+export { registerUnblockTool } from './unblock';
+export { registerManageDependencyTool } from './manage-dependency';
+
+// Init tool
+export { registerInitTool } from './init';

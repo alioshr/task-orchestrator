@@ -23,7 +23,6 @@ import {
   updateTask,
   deleteTask,
   searchTasks,
-  setTaskStatus,
 } from '../repos/tasks';
 import { getSections } from '../repos/sections';
 import type { TaskCounts } from '../repos/base';

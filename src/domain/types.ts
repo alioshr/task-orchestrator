@@ -1,53 +1,18 @@
 /**
- * Domain Types for Task Orchestrator v2.0
+ * Domain Types for Task Orchestrator v3.0
  *
- * All TypeScript interfaces and enums for the domain model.
- * Based on the v2.0 schema specification.
+ * v3 changes:
+ * - Projects are stateless boards (no status)
+ * - Feature/task status follows lean pipeline: configurable linear states
+ * - WILL_NOT_IMPLEMENT is an exit state for tasks and features
+ * - Blocking is a field (blockedBy/blockedReason), not a status
+ * - Dependencies table removed; blocked_by and related_to are JSON fields
+ * - LockStatus removed (dead code)
  */
 
 // ============================================================================
 // Enums
 // ============================================================================
-
-export enum ProjectStatus {
-  PLANNING = 'PLANNING',
-  IN_DEVELOPMENT = 'IN_DEVELOPMENT',
-  ON_HOLD = 'ON_HOLD',
-  CANCELLED = 'CANCELLED',
-  COMPLETED = 'COMPLETED',
-  ARCHIVED = 'ARCHIVED'
-}
-
-export enum FeatureStatus {
-  DRAFT = 'DRAFT',
-  PLANNING = 'PLANNING',
-  IN_DEVELOPMENT = 'IN_DEVELOPMENT',
-  TESTING = 'TESTING',
-  VALIDATING = 'VALIDATING',
-  PENDING_REVIEW = 'PENDING_REVIEW',
-  BLOCKED = 'BLOCKED',
-  ON_HOLD = 'ON_HOLD',
-  DEPLOYED = 'DEPLOYED',
-  COMPLETED = 'COMPLETED',
-  ARCHIVED = 'ARCHIVED'
-}
-
-export enum TaskStatus {
-  BACKLOG = 'BACKLOG',
-  PENDING = 'PENDING',
-  IN_PROGRESS = 'IN_PROGRESS',
-  IN_REVIEW = 'IN_REVIEW',
-  CHANGES_REQUESTED = 'CHANGES_REQUESTED',
-  TESTING = 'TESTING',
-  READY_FOR_QA = 'READY_FOR_QA',
-  INVESTIGATING = 'INVESTIGATING',
-  BLOCKED = 'BLOCKED',
-  ON_HOLD = 'ON_HOLD',
-  DEPLOYED = 'DEPLOYED',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
-  DEFERRED = 'DEFERRED'
-}
 
 export enum Priority {
   HIGH = 'HIGH',
@@ -72,20 +37,7 @@ export enum EntityType {
 
 export enum DependencyType {
   BLOCKS = 'BLOCKS',
-  IS_BLOCKED_BY = 'IS_BLOCKED_BY',
-  RELATES_TO = 'RELATES_TO'
-}
-
-export enum DependencyEntityType {
-  TASK = 'task',
-  FEATURE = 'feature'
-}
-
-export enum LockStatus {
-  UNLOCKED = 'UNLOCKED',
-  LOCKED_EXCLUSIVE = 'LOCKED_EXCLUSIVE',
-  LOCKED_SHARED = 'LOCKED_SHARED',
-  LOCKED_SECTION = 'LOCKED_SECTION'
+  RELATES_TO = 'RELATES_TO',
 }
 
 // ============================================================================
@@ -97,7 +49,6 @@ export interface Project {
   name: string;
   summary: string;
   description?: string;
-  status: ProjectStatus;
   version: number;
   createdAt: Date;
   modifiedAt: Date;
@@ -111,8 +62,11 @@ export interface Feature {
   name: string;
   summary: string;
   description?: string;
-  status: FeatureStatus;
+  status: string;
   priority: Priority;
+  blockedBy: string[];
+  blockedReason?: string;
+  relatedTo: string[];
   version: number;
   createdAt: Date;
   modifiedAt: Date;
@@ -127,12 +81,14 @@ export interface Task {
   title: string;
   summary: string;
   description?: string;
-  status: TaskStatus;
+  status: string;
   priority: Priority;
   complexity: number;
+  blockedBy: string[];
+  blockedReason?: string;
+  relatedTo: string[];
   version: number;
   lastModifiedBy?: string;
-  lockStatus: LockStatus;
   createdAt: Date;
   modifiedAt: Date;
   searchVector?: string;
@@ -178,15 +134,6 @@ export interface TemplateSection {
   ordinal: number;
   isRequired: boolean;
   tags: string;
-}
-
-export interface Dependency {
-  id: string;
-  fromEntityId: string;
-  toEntityId: string;
-  entityType: DependencyEntityType;
-  type: DependencyType;
-  createdAt: Date;
 }
 
 export interface EntityTag {

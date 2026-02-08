@@ -1,3 +1,42 @@
+# 3.0.0 (Breaking)
+
+### Breaking Changes
+
+* Projects are now stateless boards (no status column or workflow transitions)
+* Feature and task status follows lean configurable pipelines (NEW → ACTIVE → ... → CLOSED)
+* WILL_NOT_IMPLEMENT replaces CANCELLED as the exit/terminal state
+* Blocking is now a first-class field (blockedBy/blockedReason) instead of a status
+* Dependencies table removed; blocking and relations stored as JSON fields on entities
+* `setup_project` tool removed
+* `get_next_status` tool removed
+* `manage_container` no longer supports `setStatus` operation or `status` in update
+* `IS_BLOCKED_BY` dependency type removed
+* Database migration 003 required (auto-applied on boot)
+
+### New Tools
+
+* `init` - Initialize orchestrator (config + DB), with re-init safety
+* `advance` - Move entity one step forward in pipeline
+* `revert` - Move entity one step backward in pipeline
+* `terminate` - Set entity to WILL_NOT_IMPLEMENT
+* `block` - Block entity with UUID blockers or NO_OP
+* `unblock` - Remove specific blockers from entity
+
+### Changed Tools
+
+* `manage_dependency` - Now supports only BLOCKS and RELATES_TO (IS_BLOCKED_BY removed)
+* `get_next_task` - Filters by NEW status and empty blocked_by
+* `get_next_feature` - Prioritizes ACTIVE over NEW, filters unblocked
+* `get_blocked_tasks` / `get_blocked_features` - Use blocked_by field semantics
+* `query_workflow_state` - Returns lean payload with pipeline position
+
+### Configuration
+
+* Config file format: YAML at TASK_ORCHESTRATOR_HOME/config.yaml
+* Pipelines are configurable with optional states (TO_BE_TESTED, READY_TO_PROD)
+* Pipeline immutability enforced after data exists
+* Startup checks warn about entities in states not in active pipeline
+
 ## [1.2.1](https://github.com/alioshr/task-orchestrator/compare/v1.2.0...v1.2.1) (2026-02-07)
 
 

@@ -14,8 +14,8 @@ import {
   buildPaginationClause,
 } from './base';
 import type { Result, Task } from '../domain/types';
-import { TaskStatus, Priority, LockStatus, EntityType, ValidationError } from '../domain/types';
-import { isValidTransition, getAllowedTransitions, isTerminalStatus } from '../services/status-validator';
+import { Priority, EntityType } from '../domain/types';
+import { isTerminal } from '../config';
 
 // ============================================================================
 // Row Mapping
@@ -31,12 +31,24 @@ interface TaskRow {
   status: string;
   priority: string;
   complexity: number;
+  blocked_by: string;
+  blocked_reason: string | null;
+  related_to: string;
   version: number;
   last_modified_by: string | null;
-  lock_status: string;
   created_at: string;
   modified_at: string;
   search_vector: string | null;
+}
+
+function parseJsonArray(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 function rowToTask(row: TaskRow): Task {
@@ -47,12 +59,14 @@ function rowToTask(row: TaskRow): Task {
     title: row.title,
     summary: row.summary,
     description: row.description ?? undefined,
-    status: row.status as TaskStatus,
+    status: row.status,
     priority: row.priority as Priority,
     complexity: row.complexity,
+    blockedBy: parseJsonArray(row.blocked_by),
+    blockedReason: row.blocked_reason ?? undefined,
+    relatedTo: parseJsonArray(row.related_to),
     version: row.version,
     lastModifiedBy: row.last_modified_by ?? undefined,
-    lockStatus: row.lock_status as LockStatus,
     createdAt: new Date(row.created_at),
     modifiedAt: new Date(row.modified_at),
     searchVector: row.search_vector ?? undefined,
@@ -73,22 +87,21 @@ function validateComplexity(complexity: number): boolean {
 // ============================================================================
 
 export function createTask(params: {
+  projectId?: string;
   featureId?: string;
   title: string;
   summary: string;
   description?: string;
-  status?: TaskStatus;
+  status?: string;
   priority: Priority;
   complexity: number;
   tags?: string[];
 }): Result<Task> {
   try {
-    // Validate complexity
     if (!validateComplexity(params.complexity)) {
       return err('Complexity must be an integer between 1 and 10', 'VALIDATION_ERROR');
     }
 
-    // Validate required fields
     if (!params.title?.trim()) {
       return err('Title is required', 'VALIDATION_ERROR');
     }
@@ -96,22 +109,33 @@ export function createTask(params: {
       return err('Summary is required', 'VALIDATION_ERROR');
     }
 
-    // Derive projectId from feature - feature is the source of truth for project membership
-    let projectId: string | undefined;
+    // Derive projectId from feature if provided, otherwise use direct projectId
+    let projectId: string | undefined = params.projectId;
     if (params.featureId) {
-      const feature = queryOne<{ project_id: string | null }>(
-        'SELECT project_id FROM features WHERE id = ?',
+      const feature = queryOne<{ project_id: string | null; status: string }>(
+        'SELECT project_id, status FROM features WHERE id = ?',
         [params.featureId]
       );
       if (!feature) {
         return err(`Feature not found: ${params.featureId}`, 'NOT_FOUND');
       }
-      projectId = feature.project_id ?? undefined;
+      if (isTerminal('feature', feature.status)) {
+        return err(
+          `Cannot create task under feature ${params.featureId}: feature is in terminal state ${feature.status}`,
+          'INVALID_OPERATION'
+        );
+      }
+      projectId = feature.project_id ?? projectId;
+    } else if (params.projectId) {
+      const project = queryOne<{ id: string }>('SELECT id FROM projects WHERE id = ?', [params.projectId]);
+      if (!project) {
+        return err(`Project not found: ${params.projectId}`, 'NOT_FOUND');
+      }
     }
 
     const id = generateId();
     const timestamp = now();
-    const status = params.status ?? TaskStatus.PENDING;
+    const status = params.status ?? 'NEW';
     const searchVector = buildSearchVector(params.title, params.summary, params.description);
 
     db.run('BEGIN TRANSACTION');
@@ -120,9 +144,9 @@ export function createTask(params: {
       execute(
         `INSERT INTO tasks (
           id, project_id, feature_id, title, summary, description,
-          status, priority, complexity, version, last_modified_by,
-          lock_status, created_at, modified_at, search_vector
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          status, priority, complexity, blocked_by, blocked_reason, related_to,
+          version, last_modified_by, created_at, modified_at, search_vector
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           projectId ?? null,
@@ -133,16 +157,17 @@ export function createTask(params: {
           status,
           params.priority,
           params.complexity,
-          1, // version
+          '[]', // blocked_by
+          null, // blocked_reason
+          '[]', // related_to
+          1,    // version
           null, // last_modified_by
-          LockStatus.UNLOCKED,
           timestamp,
           timestamp,
           searchVector,
         ]
       );
 
-      // Save tags if provided
       if (params.tags && params.tags.length > 0) {
         saveTags(id, EntityType.TASK, params.tags);
       }
@@ -184,23 +209,21 @@ export function updateTask(
     title?: string;
     summary?: string;
     description?: string;
-    status?: TaskStatus;
     priority?: Priority;
     complexity?: number;
     projectId?: string;
     featureId?: string;
     lastModifiedBy?: string;
     tags?: string[];
+    relatedTo?: string[];
     version: number;
   }
 ): Result<Task> {
   try {
-    // Validate complexity if provided
     if (params.complexity !== undefined && !validateComplexity(params.complexity)) {
       return err('Complexity must be an integer between 1 and 10', 'VALIDATION_ERROR');
     }
 
-    // Check if task exists and version matches (optimistic locking)
     const existing = queryOne<TaskRow>('SELECT * FROM tasks WHERE id = ?', [id]);
     if (!existing) {
       return err(`Task not found: ${id}`, 'NOT_FOUND');
@@ -216,30 +239,6 @@ export function updateTask(
     db.run('BEGIN TRANSACTION');
 
     try {
-      // Validate status transition if status is being changed
-      if (params.status !== undefined && params.status !== existing.status) {
-        const currentStatus = existing.status;
-
-        // Check if current status is terminal
-        if (isTerminalStatus('task', currentStatus)) {
-          db.run('ROLLBACK');
-          return err(
-            `Invalid status transition: no transitions are allowed from terminal status '${currentStatus}'`,
-            'VALIDATION_ERROR'
-          );
-        }
-
-        // Check if the transition is valid
-        if (!isValidTransition('task', currentStatus, params.status)) {
-          const allowed = getAllowedTransitions('task', currentStatus);
-          db.run('ROLLBACK');
-          return err(
-            `Invalid status transition from '${currentStatus}' to '${params.status}'. Allowed transitions: ${allowed.join(', ')}`,
-            'VALIDATION_ERROR'
-          );
-        }
-      }
-
       const updates: string[] = [];
       const values: any[] = [];
 
@@ -264,11 +263,6 @@ export function updateTask(
       if (params.description !== undefined) {
         updates.push('description = ?');
         values.push(params.description?.trim() ?? null);
-      }
-
-      if (params.status !== undefined) {
-        updates.push('status = ?');
-        values.push(params.status);
       }
 
       if (params.priority !== undefined) {
@@ -296,6 +290,11 @@ export function updateTask(
         values.push(params.lastModifiedBy ?? null);
       }
 
+      if (params.relatedTo !== undefined) {
+        updates.push('related_to = ?');
+        values.push(JSON.stringify(params.relatedTo));
+      }
+
       // Update search vector if any searchable field changed
       if (params.title !== undefined || params.summary !== undefined || params.description !== undefined) {
         const title = params.title ?? existing.title;
@@ -310,7 +309,6 @@ export function updateTask(
       updates.push('modified_at = ?');
       values.push(now());
 
-      // Add id to WHERE clause
       values.push(id);
       values.push(params.version);
 
@@ -322,7 +320,6 @@ export function updateTask(
         return err('Update failed: version conflict', 'CONFLICT');
       }
 
-      // Update tags if provided
       if (params.tags !== undefined) {
         saveTags(id, EntityType.TASK, params.tags);
       }
@@ -346,7 +343,6 @@ export function updateTask(
 
 export function deleteTask(id: string): Result<boolean> {
   try {
-    // Check if task exists
     const existing = queryOne<TaskRow>('SELECT id FROM tasks WHERE id = ?', [id]);
     if (!existing) {
       return err(`Task not found: ${id}`, 'NOT_FOUND');
@@ -355,9 +351,6 @@ export function deleteTask(id: string): Result<boolean> {
     db.run('BEGIN TRANSACTION');
 
     try {
-      // Delete related dependencies (scoped to task entity type)
-      execute('DELETE FROM dependencies WHERE (from_entity_id = ? OR to_entity_id = ?) AND entity_type = ?', [id, id, 'task']);
-
       // Delete related sections
       execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.TASK, id]);
 
@@ -393,7 +386,6 @@ export function searchTasks(params: {
     const conditions: string[] = [];
     const values: any[] = [];
 
-    // Text search
     if (params.query?.trim()) {
       conditions.push('search_vector LIKE ?');
       values.push(`%${params.query.toLowerCase()}%`);
@@ -435,13 +427,11 @@ export function searchTasks(params: {
       }
     }
 
-    // Project filter
     if (params.projectId) {
       conditions.push('project_id = ?');
       values.push(params.projectId);
     }
 
-    // Feature filter
     if (params.featureId) {
       conditions.push('feature_id = ?');
       values.push(params.featureId);
@@ -476,117 +466,6 @@ export function searchTasks(params: {
     const rows = queryAll<TaskRow>(sql, values);
 
     return ok(rows.map(rowToTask));
-  } catch (error) {
-    return err(error instanceof Error ? error.message : 'Unknown error', 'INTERNAL_ERROR');
-  }
-}
-
-export function setTaskStatus(id: string, status: TaskStatus, version: number): Result<Task> {
-  try {
-    // Check if task exists and version matches
-    const existing = queryOne<TaskRow>('SELECT * FROM tasks WHERE id = ?', [id]);
-    if (!existing) {
-      return err(`Task not found: ${id}`, 'NOT_FOUND');
-    }
-
-    if (existing.version !== version) {
-      return err(
-        `Version conflict: expected ${version}, got ${existing.version}`,
-        'CONFLICT'
-      );
-    }
-
-    // Validate status transition if status is being changed
-    if (status !== existing.status) {
-      // Check if current status is terminal
-      if (isTerminalStatus('task', existing.status)) {
-        return err(
-          `Cannot transition from terminal status ${existing.status}`,
-          'VALIDATION_ERROR'
-        );
-      }
-
-      // Check if the transition is valid
-      if (!isValidTransition('task', existing.status, status)) {
-        const allowed = getAllowedTransitions('task', existing.status);
-        return err(
-          `Invalid status transition from ${existing.status} to ${status}. Allowed transitions: ${allowed.join(', ')}`,
-          'VALIDATION_ERROR'
-        );
-      }
-    }
-
-    const changes = execute(
-      'UPDATE tasks SET status = ?, version = version + 1, modified_at = ? WHERE id = ? AND version = ?',
-      [status, now(), id, version]
-    );
-
-    if (changes === 0) {
-      return err('Update failed: version conflict', 'CONFLICT');
-    }
-
-    const updated = queryOne<TaskRow>('SELECT * FROM tasks WHERE id = ?', [id]);
-    if (!updated) {
-      return err('Failed to retrieve updated task', 'INTERNAL_ERROR');
-    }
-
-    return ok(rowToTask(updated));
-  } catch (error) {
-    return err(error instanceof Error ? error.message : 'Unknown error', 'INTERNAL_ERROR');
-  }
-}
-
-export function bulkUpdateTasks(
-  ids: string[],
-  updates: {
-    status?: TaskStatus;
-    priority?: Priority;
-  }
-): Result<number> {
-  try {
-    if (ids.length === 0) {
-      return ok(0);
-    }
-
-    if (!updates.status && !updates.priority) {
-      return err('At least one update field (status or priority) must be provided', 'VALIDATION_ERROR');
-    }
-
-    db.run('BEGIN TRANSACTION');
-
-    try {
-      const updateFields: string[] = [];
-      const values: any[] = [];
-
-      if (updates.status !== undefined) {
-        updateFields.push('status = ?');
-        values.push(updates.status);
-      }
-
-      if (updates.priority !== undefined) {
-        updateFields.push('priority = ?');
-        values.push(updates.priority);
-      }
-
-      // Always update version and modified_at
-      updateFields.push('version = version + 1');
-      updateFields.push('modified_at = ?');
-      values.push(now());
-
-      // Add ids to WHERE clause
-      const placeholders = ids.map(() => '?').join(', ');
-      values.push(...ids);
-
-      const sql = `UPDATE tasks SET ${updateFields.join(', ')} WHERE id IN (${placeholders})`;
-      const changes = execute(sql, values);
-
-      db.run('COMMIT');
-
-      return ok(changes);
-    } catch (error) {
-      db.run('ROLLBACK');
-      throw error;
-    }
   } catch (error) {
     return err(error instanceof Error ? error.message : 'Unknown error', 'INTERNAL_ERROR');
   }

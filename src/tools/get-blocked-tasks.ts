@@ -1,63 +1,50 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { createSuccessResponse, createErrorResponse, optionalUuidSchema } from './registry';
-import { getBlocked } from '../repos/dependencies';
-import { DependencyEntityType } from '../domain/types';
+import { queryAll } from '../repos/base';
 
-/**
- * Register the get_blocked_tasks MCP tool.
- *
- * Returns all blocked tasks, either with status 'BLOCKED' or tasks
- * that have incomplete blocking dependencies.
- */
 export function registerGetBlockedTasksTool(server: McpServer): void {
   server.tool(
     'get_blocked_tasks',
-    'Get all blocked tasks. Returns tasks that either have status BLOCKED or have incomplete blocking dependencies (tasks that block them but are not completed). Results are sorted by priority (descending) then creation time (ascending).',
+    'Get all blocked tasks. Returns tasks that have a non-empty blocked_by field. Results are sorted by priority (descending) then creation time (ascending).',
     {
       projectId: optionalUuidSchema.describe('Filter by project ID'),
-      featureId: optionalUuidSchema.describe('Filter by feature ID')
+      featureId: optionalUuidSchema.describe('Filter by feature ID'),
     },
     async (params: any) => {
       try {
-        const result = getBlocked({
-          entityType: DependencyEntityType.TASK,
-          projectId: params.projectId,
-          featureId: params.featureId
-        });
+        const conditions: string[] = ["blocked_by != '[]'"];
+        const values: any[] = [];
 
-        if (!result.success) {
-          return {
-            content: [{
-              type: 'text' as const,
-              text: JSON.stringify(createErrorResponse(result.error, result.code), null, 2)
-            }]
-          };
+        if (params.projectId) {
+          conditions.push('project_id = ?');
+          values.push(params.projectId);
         }
+        if (params.featureId) {
+          conditions.push('feature_id = ?');
+          values.push(params.featureId);
+        }
+
+        const sql = `SELECT * FROM tasks
+          WHERE ${conditions.join(' AND ')}
+          ORDER BY
+            CASE priority WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 3 END ASC,
+            created_at ASC`;
+
+        const rows = queryAll<any>(sql, values);
 
         return {
           content: [{
             type: 'text' as const,
-            text: JSON.stringify(
-              createSuccessResponse(
-                `Found ${result.data.length} blocked task(s)`,
-                result.data
-              ),
-              null,
-              2
-            )
-          }]
+            text: JSON.stringify(createSuccessResponse(`Found ${rows.length} blocked task(s)`, rows), null, 2),
+          }],
         };
       } catch (error: any) {
         return {
           content: [{
             type: 'text' as const,
-            text: JSON.stringify(
-              createErrorResponse('Failed to get blocked tasks', error.message),
-              null,
-              2
-            )
-          }]
+            text: JSON.stringify(createErrorResponse('Failed to get blocked tasks', error.message), null, 2),
+          }],
         };
       }
     }

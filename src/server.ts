@@ -3,6 +3,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { runMigrations } from './db/migrate';
+import { initConfig } from './config';
+import { runStartupChecks } from './config/startup-checks';
 import {
   registerQueryContainerTool,
   registerManageContainerTool,
@@ -11,8 +13,6 @@ import {
   registerQueryTemplatesTool,
   registerManageTemplateTool,
   registerApplyTemplateTool,
-  registerQueryDependenciesTool,
-  registerManageDependencyTool,
   registerListTagsTool,
   registerGetTagUsageTool,
   registerRenameTagTool,
@@ -20,40 +20,68 @@ import {
   registerGetBlockedTasksTool,
   registerGetNextFeatureTool,
   registerGetBlockedFeaturesTool,
-  registerGetNextStatusTool,
   registerQueryWorkflowStateTool,
-  registerSetupProjectTool,
+  registerQueryDependenciesTool,
+  registerAdvanceTool,
+  registerRevertTool,
+  registerTerminateTool,
+  registerBlockTool,
+  registerUnblockTool,
+  registerManageDependencyTool,
+  registerInitTool,
 } from './tools';
 
-// Initialize database and run migrations
+// Initialize config, database, and run startup checks
 runMigrations();
+initConfig();
+runStartupChecks();
+
+function registerAllTools(server: McpServer): void {
+  // Container CRUD
+  registerQueryContainerTool(server);
+  registerManageContainerTool(server);
+
+  // Sections
+  registerQuerySectionsTool(server);
+  registerManageSectionsTool(server);
+
+  // Templates
+  registerQueryTemplatesTool(server);
+  registerManageTemplateTool(server);
+  registerApplyTemplateTool(server);
+
+  // Tags
+  registerListTagsTool(server);
+  registerGetTagUsageTool(server);
+  registerRenameTagTool(server);
+
+  // Workflow queries
+  registerGetNextTaskTool(server);
+  registerGetBlockedTasksTool(server);
+  registerGetNextFeatureTool(server);
+  registerGetBlockedFeaturesTool(server);
+  registerQueryWorkflowStateTool(server);
+  registerQueryDependenciesTool(server);
+
+  // Pipeline tools (v3)
+  registerAdvanceTool(server);
+  registerRevertTool(server);
+  registerTerminateTool(server);
+  registerBlockTool(server);
+  registerUnblockTool(server);
+  registerManageDependencyTool(server);
+
+  // Init
+  registerInitTool(server);
+}
 
 // Create MCP server
 const server = new McpServer({
   name: 'task-orchestrator',
-  version: '2.0.0',
+  version: '3.0.0',
 });
 
-// Register all tools
-registerQueryContainerTool(server);
-registerManageContainerTool(server);
-registerQuerySectionsTool(server);
-registerManageSectionsTool(server);
-registerQueryTemplatesTool(server);
-registerManageTemplateTool(server);
-registerApplyTemplateTool(server);
-registerQueryDependenciesTool(server);
-registerManageDependencyTool(server);
-registerListTagsTool(server);
-registerGetTagUsageTool(server);
-registerRenameTagTool(server);
-registerGetNextTaskTool(server);
-registerGetBlockedTasksTool(server);
-registerGetNextFeatureTool(server);
-registerGetBlockedFeaturesTool(server);
-registerGetNextStatusTool(server);
-registerQueryWorkflowStateTool(server);
-registerSetupProjectTool(server);
+registerAllTools(server);
 
 // Determine transport mode from CLI args or env
 const useHttp = process.argv.includes('--http') || process.env.TRANSPORT === 'http';
@@ -92,28 +120,10 @@ if (useHttp) {
 
       const sessionServer = new McpServer({
         name: 'task-orchestrator',
-        version: '2.0.0',
+        version: '3.0.0',
       });
 
-      registerQueryContainerTool(sessionServer);
-      registerManageContainerTool(sessionServer);
-      registerQuerySectionsTool(sessionServer);
-      registerManageSectionsTool(sessionServer);
-      registerQueryTemplatesTool(sessionServer);
-      registerManageTemplateTool(sessionServer);
-      registerApplyTemplateTool(sessionServer);
-      registerQueryDependenciesTool(sessionServer);
-      registerManageDependencyTool(sessionServer);
-      registerListTagsTool(sessionServer);
-      registerGetTagUsageTool(sessionServer);
-      registerRenameTagTool(sessionServer);
-      registerGetNextTaskTool(sessionServer);
-      registerGetBlockedTasksTool(sessionServer);
-      registerGetNextFeatureTool(sessionServer);
-      registerGetBlockedFeaturesTool(sessionServer);
-      registerGetNextStatusTool(sessionServer);
-      registerQueryWorkflowStateTool(sessionServer);
-      registerSetupProjectTool(sessionServer);
+      registerAllTools(sessionServer);
 
       await sessionServer.connect(transport);
       return transport.handleRequest(req);
