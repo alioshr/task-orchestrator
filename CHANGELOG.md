@@ -1,3 +1,10 @@
+## [3.0.1](https://github.com/alioshr/task-orchestrator/compare/v3.0.0...v3.0.1) (2026-02-08)
+
+
+### Bug Fixes
+
+* always run migrations in bootstrap ([04b861d](https://github.com/alioshr/task-orchestrator/commit/04b861d95e06d9c76b1eda0f847fc3ee1e3e3755))
+
 # [3.0.0](https://github.com/alioshr/task-orchestrator/compare/v2.0.0...v3.0.0) (2026-02-08)
 
 
