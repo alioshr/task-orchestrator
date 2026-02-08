@@ -1,3 +1,10 @@
+## [3.0.2](https://github.com/alioshr/task-orchestrator/compare/v3.0.1...v3.0.2) (2026-02-08)
+
+
+### Bug Fixes
+
+* consolidate migrations into single v3 schema ([8dd5638](https://github.com/alioshr/task-orchestrator/commit/8dd5638e9fe9a1328d297495645b78c3412fde9c))
+
 ## [3.0.1](https://github.com/alioshr/task-orchestrator/compare/v3.0.0...v3.0.1) (2026-02-08)
 
 
