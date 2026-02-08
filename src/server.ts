@@ -27,6 +27,9 @@ import {
   registerUnblockTool,
   registerManageDependencyTool,
   registerSyncTool,
+  registerQueryGraphTool,
+  registerManageGraphTool,
+  registerManageChangelogTool,
 } from './tools';
 
 bootstrap();
@@ -68,6 +71,11 @@ function registerAllTools(server: McpServer): void {
 
   // Sync
   registerSyncTool(server);
+
+  // Knowledge graph
+  registerQueryGraphTool(server);
+  registerManageGraphTool(server);
+  registerManageChangelogTool(server);
 }
 
 // Create MCP server

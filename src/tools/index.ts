@@ -34,3 +34,8 @@ export { registerManageDependencyTool } from './manage-dependency';
 
 // Sync tool
 export { registerSyncTool } from './sync';
+
+// Knowledge graph tools
+export { registerQueryGraphTool } from './query-graph';
+export { registerManageGraphTool } from './manage-graph';
+export { registerManageChangelogTool } from './manage-changelog';

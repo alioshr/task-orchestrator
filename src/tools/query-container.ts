@@ -25,7 +25,65 @@ import {
   searchTasks,
 } from '../repos/tasks';
 import { getSections } from '../repos/sections';
+import { findAtomsByPaths } from '../repos/graph-atoms';
+import { buildGraphContext } from '../repos/graph-context';
+import type { GraphContextResponse } from '../repos/graph-context';
 import type { TaskCounts } from '../repos/base';
+import type { Section } from '../domain/types';
+
+/**
+ * Extract file paths from a Context Files section content.
+ * Handles line-delimited, comma-separated, or mixed formats.
+ * Degrades gracefully on malformed lines.
+ */
+export function extractFilePathsFromSection(content: string): string[] {
+  if (!content || !content.trim()) return [];
+
+  const paths: string[] = [];
+  const lines = content.split('\n');
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Split by commas to handle comma-separated values within a line
+    const parts = trimmed.split(',');
+    for (const part of parts) {
+      const cleaned = part.trim();
+      // Basic validation: skip empty, skip lines that look like section headers or comments
+      if (cleaned && !cleaned.startsWith('#') && !cleaned.startsWith('//')) {
+        paths.push(cleaned);
+      }
+    }
+  }
+
+  return paths;
+}
+
+/**
+ * Resolve knowledge graph context for a task by reading its Context Files section
+ * and matching file paths against atom path patterns.
+ */
+function resolveGraphContextForTask(
+  task: { projectId?: string },
+  sections: Section[]
+): GraphContextResponse | null {
+  if (!task.projectId) return null;
+
+  // Find the "Context Files" section
+  const contextSection = sections.find(
+    s => s.title.toLowerCase().includes('context files')
+  );
+  if (!contextSection) return null;
+
+  const filePaths = extractFilePathsFromSection(contextSection.content);
+  if (filePaths.length === 0) return null;
+
+  const result = findAtomsByPaths(task.projectId, filePaths);
+  if (!result.success) return null;
+
+  return buildGraphContext(result.data.atoms, result.data.unmatchedPaths);
+}
 
 /**
  * Unified query_container tool - read operations for containers
@@ -52,6 +110,7 @@ export function registerQueryContainerTool(server: McpServer): void {
       limit: z.coerce.number().int().optional().default(20),
       offset: z.coerce.number().int().optional().default(0),
       includeSections: z.boolean().optional().default(false),
+      includeGraphContext: z.boolean().optional().default(false).describe('Resolve knowledge graph context for task get operations'),
     },
     async (params) => {
       try {
@@ -83,10 +142,12 @@ export function registerQueryContainerTool(server: McpServer): void {
             };
           }
 
-          let data: any = { [containerType]: result.data };
+          const data: Record<string, unknown> = { [containerType]: result.data };
 
-          // Include sections if requested
-          if (params.includeSections) {
+          // Determine if sections need to be fetched
+          const needSections = params.includeSections || (containerType === 'task' && params.includeGraphContext);
+
+          if (needSections) {
             const entityTypeMap = {
               project: 'PROJECT',
               feature: 'FEATURE',
@@ -94,7 +155,21 @@ export function registerQueryContainerTool(server: McpServer): void {
             };
             const sectionsResult = getSections(id, entityTypeMap[containerType]);
             if (sectionsResult.success) {
-              data.sections = sectionsResult.data;
+              // Only expose sections in the response if explicitly requested
+              if (params.includeSections) {
+                data.sections = sectionsResult.data;
+              }
+
+              // Resolve graph context using the fetched sections
+              if (containerType === 'task' && params.includeGraphContext) {
+                const graphContext = resolveGraphContextForTask(
+                  result.data as { projectId?: string },
+                  sectionsResult.data
+                );
+                if (graphContext) {
+                  data.graphContext = graphContext;
+                }
+              }
             }
           }
 

@@ -10,7 +10,7 @@ interface Migration {
 
 function loadMigrations(): Migration[] {
   const migrationsDir = join(dirname(import.meta.path), 'migrations');
-  const files = ['001_v3_schema.sql'];
+  const files = ['001_v3_schema.sql', '002_knowledge_graph.sql'];
 
   return files.map((file, i) => ({
     version: i + 1,

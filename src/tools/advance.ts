@@ -206,6 +206,19 @@ export function registerAdvanceTool(server: McpServer): void {
         const mainMessage = `${containerType} advanced: ${result.oldStatus} → ${result.newStatus} (position: ${result.pipelinePosition ?? 'terminal'})`;
         const fullMessage = [mainMessage, ...result.messages].join(' ');
 
+        // Include graph hints when a task reaches a completion terminal status (not WILL_NOT_IMPLEMENT)
+        let graphHints: { message: string; suggestedActions: string[] } | undefined;
+        if (containerType === 'task' && isTerminal('task', result.newStatus as string) && result.newStatus !== EXIT_STATE) {
+          graphHints = {
+            message: 'Task completed. Consider updating the knowledge graph.',
+            suggestedActions: [
+              'Update atom knowledge for areas affected by this task',
+              'Update atom paths if files were moved or new directories created',
+              'Append changelog entries for significant changes',
+            ],
+          };
+        }
+
         const response = createSuccessResponse(fullMessage, {
           [params.containerType]: result.entity,
           transition: { from: result.oldStatus, to: result.newStatus },
@@ -213,6 +226,7 @@ export function registerAdvanceTool(server: McpServer): void {
           unblockedEntities: result.unblockedEntities,
           featureTransition: result.featureTransitionMsg,
           featureUnblockedEntities: result.featureUnblockedEntities,
+          graphHints,
         });
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(response, null, 2) }],
