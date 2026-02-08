@@ -95,7 +95,15 @@ export function registerBlockTool(server: McpServer): void {
       version: z.number().int().describe('Current version for optimistic locking'),
       blockedBy: z.union([
         z.array(z.string()),
-        z.literal('NO_OP'),
+        z.string().transform((s, ctx) => {
+          if (s === 'NO_OP') return s;
+          try {
+            const parsed = JSON.parse(s);
+            if (Array.isArray(parsed) && parsed.every(i => typeof i === 'string')) return parsed;
+          } catch {}
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Expected array of UUID strings or "NO_OP"' });
+          return z.NEVER;
+        }),
       ]).describe('Array of UUID strings or "NO_OP"'),
       blockedReason: z.string().optional().describe('Required when blockedBy is NO_OP. Optional context for UUID blockers.'),
     },
