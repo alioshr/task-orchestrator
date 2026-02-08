@@ -1,6 +1,6 @@
 {
   "name": "@allpepper/task-orchestrator",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "MCP server for hierarchical task orchestration with SQLite persistence",
   "type": "module",
   "main": "src/index.ts",

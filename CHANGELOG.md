@@ -1,3 +1,10 @@
+## [3.0.3](https://github.com/alioshr/task-orchestrator/compare/v3.0.2...v3.0.3) (2026-02-08)
+
+
+### Bug Fixes
+
+* handle string-encoded arrays in block/unblock Zod schemas ([d8701bc](https://github.com/alioshr/task-orchestrator/commit/d8701bc9714b123191573ab14f456000bd0b5391))
+
 ## [3.0.2](https://github.com/alioshr/task-orchestrator/compare/v3.0.1...v3.0.2) (2026-02-08)
 
 
