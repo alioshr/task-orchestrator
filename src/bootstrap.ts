@@ -6,23 +6,21 @@ import { runStartupChecks } from './config/startup-checks';
 /**
  * Safe bootstrap for library consumers.
  *
- * - First run (no config or db): creates config.yaml, runs migrations, loads config.
- * - Subsequent runs: loads config and checks for orphaned states. Never touches db schema.
+ * - Ensures config.yaml exists (creates default on first run).
+ * - Always runs migrations (idempotent — skips already-applied ones).
+ * - Loads config and checks for orphaned states.
  *
  * Set TASK_ORCHESTRATOR_HOME env before calling to control the storage directory.
  * Defaults to ~/.task-orchestrator/
  */
 export function bootstrap(): void {
   const configPath = getConfigPath();
-  const dbPath = getDbPath();
 
-  if (!existsSync(configPath) && !existsSync(dbPath)) {
+  if (!existsSync(configPath)) {
     writeDefaultConfig(configPath);
-    runMigrations();
-    initConfig();
-    return;
   }
 
+  runMigrations();
   initConfig();
   runStartupChecks();
 }
