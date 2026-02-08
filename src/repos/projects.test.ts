@@ -11,9 +11,15 @@ import {
 } from './projects';
 import { createFeature, getFeature } from './features';
 import { createTask, getTask } from './tasks';
+import { createMolecule, getMolecule } from './graph-molecules';
+import { createAtom, getAtom } from './graph-atoms';
+import { appendChangelog } from './graph-changelog';
 
 // Clean all relevant tables in correct FK order
 function cleanTables() {
+  db.run('DELETE FROM graph_changelog');
+  db.run('DELETE FROM graph_atoms');
+  db.run('DELETE FROM graph_molecules');
   db.run('DELETE FROM sections');
   db.run('DELETE FROM entity_tags');
   db.run('DELETE FROM tasks');
@@ -621,6 +627,67 @@ describe('deleteProject', () => {
     expect(getProject(project.data.id).success).toBe(false);
     expect(getFeature(feature.data.id).success).toBe(false);
     expect(getTask(task.data.id).success).toBe(false);
+  });
+
+  it('should cascade delete graph molecules, atoms, and changelog entries', () => {
+    const project = createProject({ name: 'Graph Project', summary: 'Has graph entities' });
+    expect(project.success).toBe(true);
+    if (!project.success) return;
+
+    const feature = createFeature({
+      projectId: project.data.id,
+      name: 'Feature',
+      summary: 'Has tasks',
+      priority: Priority.HIGH,
+    });
+    expect(feature.success).toBe(true);
+    if (!feature.success) return;
+
+    const task = createTask({
+      featureId: feature.data.id,
+      title: 'Task',
+      summary: 'Task',
+      priority: Priority.HIGH,
+      complexity: 1,
+    });
+    expect(task.success).toBe(true);
+    if (!task.success) return;
+
+    const mol = createMolecule({
+      projectId: project.data.id,
+      name: 'Test Molecule',
+      createdByTaskId: task.data.id,
+    });
+    expect(mol.success).toBe(true);
+    if (!mol.success) return;
+
+    const atom = createAtom({
+      projectId: project.data.id,
+      moleculeId: mol.data.id,
+      name: 'Test Atom',
+      paths: '["src/**/*.ts"]',
+      createdByTaskId: task.data.id,
+    });
+    expect(atom.success).toBe(true);
+    if (!atom.success) return;
+
+    const changelog = appendChangelog({
+      parentType: 'atom',
+      parentId: atom.data.id,
+      taskId: task.data.id,
+      summary: 'Initial creation',
+    });
+    expect(changelog.success).toBe(true);
+
+    const result = deleteProject(project.data.id, { cascade: true });
+
+    expect(result.success).toBe(true);
+    expect(getProject(project.data.id).success).toBe(false);
+    expect(getMolecule(mol.data.id).success).toBe(false);
+    expect(getAtom(atom.data.id).success).toBe(false);
+
+    const remaining = db.query('SELECT * FROM graph_changelog WHERE parent_id = ?').all(atom.data.id);
+    expect(remaining.length).toBe(0);
   });
 });
 

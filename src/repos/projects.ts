@@ -241,6 +241,18 @@ export function deleteProject(id: string, options?: { cascade?: boolean }): Resu
         execute('DELETE FROM features WHERE project_id = ?', [id]);
       }
 
+      // Delete graph entities scoped to this project
+      const atomIds = queryAll<{ id: string }>('SELECT id FROM graph_atoms WHERE project_id = ?', [id]);
+      for (const atom of atomIds) {
+        execute("DELETE FROM graph_changelog WHERE parent_type = 'atom' AND parent_id = ?", [atom.id]);
+      }
+      const moleculeIds = queryAll<{ id: string }>('SELECT id FROM graph_molecules WHERE project_id = ?', [id]);
+      for (const mol of moleculeIds) {
+        execute("DELETE FROM graph_changelog WHERE parent_type = 'molecule' AND parent_id = ?", [mol.id]);
+      }
+      execute('DELETE FROM graph_atoms WHERE project_id = ?', [id]);
+      execute('DELETE FROM graph_molecules WHERE project_id = ?', [id]);
+
       execute('DELETE FROM sections WHERE entity_type = ? AND entity_id = ?', [EntityType.PROJECT, id]);
       deleteTags(id, EntityType.PROJECT);
       execute('DELETE FROM projects WHERE id = ?', [id]);
