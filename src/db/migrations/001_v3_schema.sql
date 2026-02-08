@@ -1,19 +1,16 @@
--- Consolidated v2.0 schema for Task Orchestrator Bun.js port
--- Combines Kotlin V1-V7 migrations, strips locking tables
+-- Task Orchestrator v3 consolidated schema
 
 CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     summary TEXT NOT NULL,
     description TEXT,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('PLANNING', 'IN_DEVELOPMENT', 'ON_HOLD', 'CANCELLED', 'COMPLETED', 'ARCHIVED')),
     version INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     modified_at TEXT NOT NULL,
     search_vector TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at);
 CREATE INDEX IF NOT EXISTS idx_projects_modified_at ON projects(modified_at);
 CREATE INDEX IF NOT EXISTS idx_projects_version ON projects(version);
@@ -43,8 +40,11 @@ CREATE TABLE IF NOT EXISTS features (
     name TEXT NOT NULL,
     summary TEXT NOT NULL,
     description TEXT,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('DRAFT', 'PLANNING', 'IN_DEVELOPMENT', 'TESTING', 'VALIDATING', 'PENDING_REVIEW', 'BLOCKED', 'ON_HOLD', 'DEPLOYED', 'COMPLETED', 'ARCHIVED')),
+    status TEXT NOT NULL DEFAULT 'NEW',
     priority VARCHAR(10) NOT NULL CHECK (priority IN ('HIGH', 'MEDIUM', 'LOW')),
+    blocked_by TEXT NOT NULL DEFAULT '[]',
+    blocked_reason TEXT,
+    related_to TEXT NOT NULL DEFAULT '[]',
     version INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     modified_at TEXT NOT NULL,
@@ -116,12 +116,14 @@ CREATE TABLE IF NOT EXISTS tasks (
     title TEXT NOT NULL,
     summary TEXT NOT NULL,
     description TEXT,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('BACKLOG', 'PENDING', 'IN_PROGRESS', 'IN_REVIEW', 'CHANGES_REQUESTED', 'TESTING', 'READY_FOR_QA', 'INVESTIGATING', 'BLOCKED', 'ON_HOLD', 'DEPLOYED', 'COMPLETED', 'CANCELLED', 'DEFERRED')),
+    status TEXT NOT NULL DEFAULT 'NEW',
     priority VARCHAR(20) NOT NULL CHECK (priority IN ('HIGH', 'MEDIUM', 'LOW')),
     complexity INTEGER NOT NULL,
+    blocked_by TEXT NOT NULL DEFAULT '[]',
+    blocked_reason TEXT,
+    related_to TEXT NOT NULL DEFAULT '[]',
     version INTEGER NOT NULL DEFAULT 1,
     last_modified_by TEXT,
-    lock_status VARCHAR(20) NOT NULL DEFAULT 'UNLOCKED' CHECK (lock_status IN ('UNLOCKED', 'LOCKED_EXCLUSIVE', 'LOCKED_SHARED', 'LOCKED_SECTION')),
     created_at TEXT NOT NULL,
     modified_at TEXT NOT NULL,
     search_vector TEXT,
@@ -134,7 +136,6 @@ CREATE INDEX IF NOT EXISTS idx_tasks_feature_id ON tasks(feature_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
 CREATE INDEX IF NOT EXISTS idx_tasks_version ON tasks(version);
-CREATE INDEX IF NOT EXISTS idx_tasks_lock_status ON tasks(lock_status);
 CREATE INDEX IF NOT EXISTS idx_tasks_last_modified_by ON tasks(last_modified_by);
 CREATE INDEX IF NOT EXISTS idx_tasks_search_vector ON tasks(search_vector);
 CREATE INDEX IF NOT EXISTS idx_tasks_status_priority ON tasks(status, priority);
@@ -144,17 +145,3 @@ CREATE INDEX IF NOT EXISTS idx_tasks_priority_created ON tasks(priority DESC, cr
 CREATE INDEX IF NOT EXISTS idx_tasks_project_feature ON tasks(project_id, feature_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status_priority_complexity ON tasks(status, priority, complexity);
 CREATE INDEX IF NOT EXISTS idx_tasks_feature_status_priority ON tasks(feature_id, status, priority);
-
-CREATE TABLE IF NOT EXISTS dependencies (
-    id TEXT PRIMARY KEY,
-    from_task_id TEXT NOT NULL,
-    to_task_id TEXT NOT NULL,
-    type VARCHAR(20) NOT NULL CHECK (type IN ('BLOCKS', 'IS_BLOCKED_BY', 'RELATES_TO')),
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (from_task_id) REFERENCES tasks(id),
-    FOREIGN KEY (to_task_id) REFERENCES tasks(id)
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_dependencies_unique ON dependencies(from_task_id, to_task_id, type);
-CREATE INDEX IF NOT EXISTS idx_dependencies_from_task_id ON dependencies(from_task_id);
-CREATE INDEX IF NOT EXISTS idx_dependencies_to_task_id ON dependencies(to_task_id);
