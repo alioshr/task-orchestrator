@@ -1,3 +1,15 @@
+# [3.0.0](https://github.com/alioshr/task-orchestrator/compare/v2.0.0...v3.0.0) (2026-02-08)
+
+
+* fix!: safe server bootstrap, remove DATABASE_PATH, rename init to sync ([b510063](https://github.com/alioshr/task-orchestrator/commit/b5100635ecac85e5106cedfd6adb227fc3067a02))
+
+
+### BREAKING CHANGES
+
+* DATABASE_PATH env no longer supported. init tool renamed to sync, confirmed param renamed to override.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
 # [2.0.0](https://github.com/alioshr/task-orchestrator/compare/v1.2.1...v2.0.0) (2026-02-08)
 
 
