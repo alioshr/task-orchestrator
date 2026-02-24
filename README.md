@@ -85,6 +85,10 @@ Optional env vars:
 - `TRANSPORT=http` as alternative to `--http`
 - `TASK_ORCHESTRATOR_HOME` to control config/db location
 
+HTTP mode endpoints:
+- MCP: `http://127.0.0.1:<PORT>/mcp`
+- Status: `http://127.0.0.1:<PORT>/status`
+
 ## Storage and Paths
 
 Default home directory:
@@ -93,6 +97,7 @@ Default home directory:
 Files:
 - Config: `~/.task-orchestrator/config.yaml`
 - Database: `~/.task-orchestrator/tasks.db`
+- Runtime status: `~/.task-orchestrator/runtime/mcp-http-status.json`
 
 Override both by setting:
 - `TASK_ORCHESTRATOR_HOME=/custom/path`

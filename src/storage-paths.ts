@@ -73,3 +73,11 @@ export function resolveOrchestratorDbPath(): string {
 export function resolveOrchestratorConfigPath(): string {
   return join(resolveOrchestratorHomePath(), 'config.yaml');
 }
+
+export function resolveOrchestratorRuntimeDirPath(): string {
+  return join(resolveOrchestratorHomePath(), 'runtime');
+}
+
+export function resolveOrchestratorRuntimeStatusPath(): string {
+  return join(resolveOrchestratorRuntimeDirPath(), 'mcp-http-status.json');
+}
