@@ -47,9 +47,9 @@ This server reduces that burden by exposing high-level transition intent:
 - Language: TypeScript (ESM)
 - Persistence: SQLite (`bun:sqlite`)
 - Transport:
-  - STDIO MCP (default)
-  - Streamable HTTP MCP (`--http` or `TRANSPORT=http`)
-  - Dual transport (`--dual` or `TRANSPORT=both`) to serve STDIO and HTTP in one process
+  - Dual transport (default): STDIO MCP + Streamable HTTP MCP
+  - HTTP only: `--http` or `TRANSPORT=http`
+  - STDIO only: `--stdio` or `TRANSPORT=stdio`
 
 Main entry points:
 - CLI/server: `src/server.ts`
@@ -69,28 +69,28 @@ Main entry points:
 bun install
 ```
 
-### Run (STDIO)
+### Run (Default: Dual STDIO + HTTP)
 
 ```bash
 bun run src/server.ts
 ```
 
-### Run (HTTP)
+### Run (HTTP Only)
 
 ```bash
 bun run src/server.ts --http
 ```
 
-### Run (Dual: STDIO + HTTP)
+### Run (STDIO Only)
 
 ```bash
-bun run src/server.ts --dual
+bun run src/server.ts --stdio
 ```
 
 Optional env vars:
 - `PORT` for HTTP mode (default `3100`)
-- `TRANSPORT=http` as alternative to `--http`
-- `TRANSPORT=both` as alternative to `--dual`
+- `TRANSPORT=http` for HTTP-only mode
+- `TRANSPORT=stdio` for STDIO-only mode
 - `TASK_ORCHESTRATOR_HOME` to control config/db location
 
 HTTP mode endpoints:

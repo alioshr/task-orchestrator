@@ -99,17 +99,33 @@ const SERVER_VERSION = '3.0.0';
 // Determine transport mode from CLI args or env
 const cliArgs = new Set(process.argv.slice(2));
 const transportMode = (process.env.TRANSPORT || '').toLowerCase();
-const useHttp =
-  cliArgs.has('--http') ||
-  cliArgs.has('--dual') ||
-  transportMode === 'http' ||
-  transportMode === 'both';
-const useStdio =
-  cliArgs.has('--stdio') ||
-  cliArgs.has('--dual') ||
-  transportMode === '' ||
-  transportMode === 'stdio' ||
-  transportMode === 'both';
+const hasHttpFlag = cliArgs.has('--http');
+const hasStdioFlag = cliArgs.has('--stdio');
+const hasDualFlag = cliArgs.has('--dual');
+
+let useHttp: boolean;
+let useStdio: boolean;
+
+if (hasDualFlag) {
+  useHttp = true;
+  useStdio = true;
+} else if (hasHttpFlag && !hasStdioFlag) {
+  useHttp = true;
+  useStdio = false;
+} else if (hasStdioFlag && !hasHttpFlag) {
+  useHttp = false;
+  useStdio = true;
+} else if (transportMode === 'http') {
+  useHttp = true;
+  useStdio = false;
+} else if (transportMode === 'stdio') {
+  useHttp = false;
+  useStdio = true;
+} else {
+  // Default mode: dual transport so stdio clients and HTTP clients can coexist.
+  useHttp = true;
+  useStdio = true;
+}
 
 if (useHttp) {
   const host = process.env.HOST || '127.0.0.1';
