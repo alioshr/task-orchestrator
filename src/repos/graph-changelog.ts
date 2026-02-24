@@ -114,7 +114,7 @@ export function searchChangelog(params: {
   try {
     const paginationClause = buildPaginationClause({ limit: params.limit, offset: params.offset });
 
-    const sql = `SELECT * FROM graph_changelog WHERE parent_type = ? AND parent_id = ? ORDER BY created_at DESC${paginationClause}`;
+    const sql = `SELECT * FROM graph_changelog WHERE parent_type = ? AND parent_id = ? ORDER BY created_at DESC, rowid DESC${paginationClause}`;
     const rows = queryAll<ChangelogRow>(sql, [params.parentType, params.parentId]);
 
     return ok(rows.map(rowToEntry));
@@ -133,7 +133,7 @@ export function getRecentChangelog(
 ): ChangelogEntry[] {
   try {
     const rows = queryAll<ChangelogRow>(
-      `SELECT * FROM graph_changelog WHERE parent_type = ? AND parent_id = ? ORDER BY created_at DESC LIMIT ?`,
+      `SELECT * FROM graph_changelog WHERE parent_type = ? AND parent_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`,
       [parentType, parentId, limit]
     );
     return rows.map(rowToEntry);
