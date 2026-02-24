@@ -1,3 +1,10 @@
+# [3.2.0](https://github.com/alioshr/task-orchestrator/compare/v3.1.1...v3.2.0) (2026-02-24)
+
+
+### Features
+
+* **http:** publish runtime status file and expose /status endpoint ([fbee73a](https://github.com/alioshr/task-orchestrator/commit/fbee73a0e1fb3a119750a63ac4643c8ece355542))
+
 ## [3.1.1](https://github.com/alioshr/task-orchestrator/compare/v3.1.0...v3.1.1) (2026-02-08)
 
 
