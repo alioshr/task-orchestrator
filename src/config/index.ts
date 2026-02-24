@@ -7,11 +7,16 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { mkdirSync } from 'fs';
-import { dirname, join } from 'path';
+import { dirname } from 'path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { OrchestratorConfig, PipelineInfo } from './types';
 import { validatePipeline, EXIT_STATE } from './catalog';
 import { db } from '../db/client';
+import {
+  resolveOrchestratorHomePath,
+  resolveOrchestratorDbPath,
+  resolveOrchestratorConfigPath,
+} from '../storage-paths';
 
 export { EXIT_STATE } from './catalog';
 export type { OrchestratorConfig, PipelineInfo } from './types';
@@ -52,15 +57,15 @@ let _featurePipeline: PipelineInfo | null = null;
 let _taskPipeline: PipelineInfo | null = null;
 
 export function getHomePath(): string {
-  return process.env.TASK_ORCHESTRATOR_HOME || join(process.env.HOME || '~', '.task-orchestrator');
+  return resolveOrchestratorHomePath();
 }
 
 export function getDbPath(): string {
-  return join(getHomePath(), 'tasks.db');
+  return resolveOrchestratorDbPath();
 }
 
 export function getConfigPath(): string {
-  return join(getHomePath(), 'config.yaml');
+  return resolveOrchestratorConfigPath();
 }
 
 export function generateDefaultConfig(): string {
@@ -198,29 +203,24 @@ function writeLockedConfig(config: OrchestratorConfig): void {
 }
 
 function resolveEffectiveConfig(loadedConfig: OrchestratorConfig): OrchestratorConfig {
-  try {
-    ensurePipelineConfigTable();
-    const dataExists = hasWorkflowData();
-    const lockedConfig = readLockedConfig();
+  ensurePipelineConfigTable();
+  const dataExists = hasWorkflowData();
+  const lockedConfig = readLockedConfig();
 
-    // Before data exists, keep lock row synced to file so users can still tune pipelines.
-    if (!dataExists) {
-      writeLockedConfig(loadedConfig);
-      return loadedConfig;
-    }
-
-    // Once data exists, ignore file edits and stick to the locked pipeline.
-    if (lockedConfig) {
-      return lockedConfig;
-    }
-
-    // Fallback for first boot on pre-lock databases that already contain data.
+  // Before data exists, keep lock row synced to file so users can still tune pipelines.
+  if (!dataExists) {
     writeLockedConfig(loadedConfig);
     return loadedConfig;
-  } catch {
-    // If lock resolution fails, fall back to file config.
-    return loadedConfig;
   }
+
+  // Once data exists, ignore file edits and stick to the locked pipeline.
+  if (lockedConfig) {
+    return lockedConfig;
+  }
+
+  // Fallback for first boot on pre-lock databases that already contain data.
+  writeLockedConfig(loadedConfig);
+  return loadedConfig;
 }
 
 export function initConfig(config?: OrchestratorConfig): void {

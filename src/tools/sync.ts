@@ -10,7 +10,7 @@ import {
   loadConfig,
   initConfig,
 } from '../config';
-import { db, closeDbConnection, reopenDbConnection } from '../db/client';
+import { db, closeDbConnection, reopenDbConnection, getActiveDbPath } from '../db/client';
 import { runMigrations } from '../db/migrate';
 
 function dbHasRecords(): boolean {
@@ -36,7 +36,7 @@ export function registerSyncTool(server: McpServer): void {
     async (params) => {
       try {
         const configPath = getConfigPath();
-        const dbPath = getDbPath();
+        const dbPath = getActiveDbPath() || getDbPath();
         const homePath = getHomePath();
 
         // Check if DB has existing records

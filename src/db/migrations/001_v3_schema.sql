@@ -145,3 +145,58 @@ CREATE INDEX IF NOT EXISTS idx_tasks_priority_created ON tasks(priority DESC, cr
 CREATE INDEX IF NOT EXISTS idx_tasks_project_feature ON tasks(project_id, feature_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status_priority_complexity ON tasks(status, priority, complexity);
 CREATE INDEX IF NOT EXISTS idx_tasks_feature_status_priority ON tasks(feature_id, status, priority);
+
+CREATE TABLE IF NOT EXISTS graph_molecules (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    name TEXT NOT NULL,
+    knowledge TEXT NOT NULL DEFAULT '',
+    related_molecules TEXT NOT NULL DEFAULT '[]',
+    created_by_task_id TEXT NOT NULL,
+    last_task_id TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS graph_atoms (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    molecule_id TEXT REFERENCES graph_molecules(id),
+    name TEXT NOT NULL,
+    paths TEXT NOT NULL DEFAULT '[]',
+    knowledge TEXT NOT NULL DEFAULT '',
+    related_atoms TEXT NOT NULL DEFAULT '[]',
+    created_by_task_id TEXT NOT NULL,
+    last_task_id TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS graph_changelog (
+    id TEXT PRIMARY KEY,
+    parent_type TEXT NOT NULL CHECK(parent_type IN ('atom', 'molecule')),
+    parent_id TEXT NOT NULL,
+    task_id TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_graph_molecules_project ON graph_molecules(project_id);
+CREATE INDEX IF NOT EXISTS idx_graph_atoms_project ON graph_atoms(project_id);
+CREATE INDEX IF NOT EXISTS idx_graph_atoms_molecule ON graph_atoms(molecule_id);
+CREATE INDEX IF NOT EXISTS idx_graph_changelog_parent ON graph_changelog(parent_type, parent_id);
+CREATE INDEX IF NOT EXISTS idx_graph_changelog_task ON graph_changelog(task_id);
+
+CREATE TABLE IF NOT EXISTS _meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+INSERT INTO _meta (key, value, updated_at)
+VALUES ('schema_id', 'task-orchestrator-v3', datetime('now'))
+ON CONFLICT(key) DO UPDATE SET
+    value = excluded.value,
+    updated_at = excluded.updated_at;
