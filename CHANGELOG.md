@@ -1,3 +1,11 @@
+## [3.3.1](https://github.com/alioshr/task-orchestrator/compare/v3.3.0...v3.3.1) (2026-02-24)
+
+
+### Bug Fixes
+
+* **changelog:** make pagination order deterministic on timestamp ties ([95128ea](https://github.com/alioshr/task-orchestrator/commit/95128ea73e1e33129ce67a0f8c5ce56dc87306ba))
+* **server:** default to dual stdio and http transport ([022a106](https://github.com/alioshr/task-orchestrator/commit/022a1065874400ede49fcf026c907794e3137bbb))
+
 # [3.3.0](https://github.com/alioshr/task-orchestrator/compare/v3.2.0...v3.3.0) (2026-02-24)
 
 
