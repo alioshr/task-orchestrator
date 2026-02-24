@@ -1,3 +1,10 @@
+# [3.3.0](https://github.com/alioshr/task-orchestrator/compare/v3.2.0...v3.3.0) (2026-02-24)
+
+
+### Features
+
+* **server:** support dual stdio+http transport mode ([2c4cbd3](https://github.com/alioshr/task-orchestrator/commit/2c4cbd37678ff0e7f1d0a8bd55f5fb984d832d1d))
+
 # [3.2.0](https://github.com/alioshr/task-orchestrator/compare/v3.1.1...v3.2.0) (2026-02-24)
 
 
