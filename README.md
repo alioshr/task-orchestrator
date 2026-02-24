@@ -49,6 +49,7 @@ This server reduces that burden by exposing high-level transition intent:
 - Transport:
   - STDIO MCP (default)
   - Streamable HTTP MCP (`--http` or `TRANSPORT=http`)
+  - Dual transport (`--dual` or `TRANSPORT=both`) to serve STDIO and HTTP in one process
 
 Main entry points:
 - CLI/server: `src/server.ts`
@@ -80,9 +81,16 @@ bun run src/server.ts
 bun run src/server.ts --http
 ```
 
+### Run (Dual: STDIO + HTTP)
+
+```bash
+bun run src/server.ts --dual
+```
+
 Optional env vars:
 - `PORT` for HTTP mode (default `3100`)
 - `TRANSPORT=http` as alternative to `--http`
+- `TRANSPORT=both` as alternative to `--dual`
 - `TASK_ORCHESTRATOR_HOME` to control config/db location
 
 HTTP mode endpoints:
