@@ -127,6 +127,22 @@ if (hasDualFlag) {
   useStdio = true;
 }
 
+// If another instance already owns the HTTP listener, skip HTTP and run stdio-only.
+// Only applies to the implicit default (dual mode). Explicit HTTP requests are respected:
+// --http flag, --dual flag, TRANSPORT=http env, or PORT env var.
+const httpExplicitlyRequested =
+  hasHttpFlag || hasDualFlag || transportMode === 'http' || !!process.env.PORT;
+
+if (useHttp && !httpExplicitlyRequested) {
+  const existingStatus = readRuntimeStatus();
+  if (existingStatus && isPidAlive(existingStatus.pid)) {
+    useHttp = false;
+    if (!useStdio) {
+      useStdio = true;
+    }
+  }
+}
+
 if (useHttp) {
   const host = process.env.HOST || '127.0.0.1';
   const basePort = parseInt(process.env.PORT || '3100', 10);
