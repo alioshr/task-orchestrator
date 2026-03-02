@@ -1,3 +1,10 @@
+## [3.3.2](https://github.com/alioshr/task-orchestrator/compare/v3.3.1...v3.3.2) (2026-03-02)
+
+
+### Bug Fixes
+
+* **server:** fall back to stdio when HTTP port is already owned ([e9197cf](https://github.com/alioshr/task-orchestrator/commit/e9197cfc0c4417d3b09e202e1ef50339f057d45d))
+
 ## [3.3.1](https://github.com/alioshr/task-orchestrator/compare/v3.3.0...v3.3.1) (2026-02-24)
 
 
