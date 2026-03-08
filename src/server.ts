@@ -134,8 +134,29 @@ const httpExplicitlyRequested =
   hasHttpFlag || hasDualFlag || transportMode === 'http' || !!process.env.PORT;
 
 if (useHttp && !httpExplicitlyRequested) {
-  const existingStatus = readRuntimeStatus();
-  if (existingStatus && isPidAlive(existingStatus.pid)) {
+  const host = process.env.HOST || '127.0.0.1';
+  const basePort = parseInt(process.env.PORT || '6100', 10);
+  const probePorts = [basePort, basePort + 1, basePort + 2, 6200];
+  let existingServerFound = false;
+
+  for (const port of probePorts) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 500);
+      const res = await fetch(`http://${host}:${port}/status`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        existingServerFound = true;
+        break;
+      }
+    } catch {
+      // Port not responding, continue
+    }
+  }
+
+  if (existingServerFound) {
     useHttp = false;
     if (!useStdio) {
       useStdio = true;
@@ -145,8 +166,8 @@ if (useHttp && !httpExplicitlyRequested) {
 
 if (useHttp) {
   const host = process.env.HOST || '127.0.0.1';
-  const basePort = parseInt(process.env.PORT || '3100', 10);
-  const fallbackPorts = [basePort, basePort + 1, basePort + 2, 3900];
+  const basePort = parseInt(process.env.PORT || '6100', 10);
+  const fallbackPorts = [basePort, basePort + 1, basePort + 2, 6200];
   const homePath = resolveOrchestratorHomePath();
   let activePort = basePort;
   let mcpUrl = `http://${host}:${activePort}/mcp`;
