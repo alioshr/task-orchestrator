@@ -1,3 +1,10 @@
+## [3.3.3](https://github.com/alioshr/task-orchestrator/compare/v3.3.2...v3.3.3) (2026-03-08)
+
+
+### Bug Fixes
+
+* re-publish with correct content ([e2c9bc2](https://github.com/alioshr/task-orchestrator/commit/e2c9bc239f66cc417d122ebc58fdd63d222b2d0b))
+
 ## [3.3.2](https://github.com/alioshr/task-orchestrator/compare/v3.3.1...v3.3.2) (2026-03-08)
 
 
