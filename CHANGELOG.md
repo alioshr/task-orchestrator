@@ -1,3 +1,11 @@
+## [3.3.2](https://github.com/alioshr/task-orchestrator/compare/v3.3.1...v3.3.2) (2026-03-08)
+
+
+### Bug Fixes
+
+* ensure to have just one instance running ([7717093](https://github.com/alioshr/task-orchestrator/commit/77170934a746ac5863b9a96b9ad252e1e5b10e17))
+* **server:** fall back to stdio when HTTP port is already owned ([e9197cf](https://github.com/alioshr/task-orchestrator/commit/e9197cfc0c4417d3b09e202e1ef50339f057d45d))
+
 ## [3.3.1](https://github.com/alioshr/task-orchestrator/compare/v3.3.0...v3.3.1) (2026-02-24)
 
 
